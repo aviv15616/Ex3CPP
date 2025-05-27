@@ -1,6 +1,6 @@
 #include "Merchant.hpp"
-#include "../core/Exceptions.hpp"
-#include "../core/Game.hpp"
+#include "Exceptions.hpp"
+#include "Game.hpp"
 #include <iostream>
 
 namespace coup {

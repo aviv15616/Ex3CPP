@@ -3,7 +3,10 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/include/roles",
+                "${workspaceFolder}/include/gui"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

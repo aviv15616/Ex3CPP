@@ -1,6 +1,6 @@
 #include "General.hpp"
-#include "../core/Exceptions.hpp"
-#include "../core/Game.hpp"
+#include "Exceptions.hpp"
+#include "Game.hpp"
 
 namespace coup {
 
@@ -11,7 +11,7 @@ namespace coup {
         return "General";
     }
 
-    void General::block_coup(Player& target) {
+    void General::undo_coup(Player& target) {
         if (coin_count < 5) {
             throw NotEnoughCoinsException(5, coin_count);
         }
@@ -19,13 +19,17 @@ namespace coup {
         if (!game->is_coup_pending_on(target.get_name())) {
             throw InvalidActionException("No coup to block on this target.");
         }
+        if(game->undo_coup==true){
+            throw InvalidActionException("Coup already undone this round.");
+        }
 
         coin_count -= 5;
-        game->cancel_coup();
+        game->cancel_coup(target.get_name());
+        game->undo_coup=true;
     }
 
     void General::on_arrest() {
-        coin_count += 1;
+        set_coins(coins() + 1); // פיצוי של מטבע אחד על כל מעצר
     }
 
 } // namespace coup
