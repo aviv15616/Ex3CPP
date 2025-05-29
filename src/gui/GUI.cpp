@@ -209,7 +209,7 @@ namespace coup
                 float spacing = 100;
                 // Red - disabled arrest
                 sf::RectangleShape redBox(sf::Vector2f(rect_size, rect_size));
-                redBox.setPosition(legend_x + spacing - 15, legend_y + 23);
+                redBox.setPosition(legend_x + spacing - 15, legend_y -7);
                 redBox.setFillColor(sf::Color::Red);
                 window.draw(redBox);
                 drawText("= Disabled Arrest", legend_x + spacing, legend_y - 10, 14, sf::Color::White);
@@ -223,7 +223,7 @@ namespace coup
 
                 // Yellow - both
                 sf::RectangleShape yellowBox(sf::Vector2f(rect_size, rect_size));
-                yellowBox.setPosition(legend_x + spacing - 15, legend_y - 7);
+                yellowBox.setPosition(legend_x + spacing - 15, legend_y +23);
                 yellowBox.setFillColor(sf::Color::Yellow);
                 window.draw(yellowBox);
                 drawText("= Both", legend_x + spacing, legend_y + 20, 14, sf::Color::White);
