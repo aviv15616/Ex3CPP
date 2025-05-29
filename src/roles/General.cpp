@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #include "General.hpp"
 #include "Exceptions.hpp"
 #include "Game.hpp"

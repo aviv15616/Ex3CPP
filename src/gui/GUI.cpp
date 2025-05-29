@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #include "GUI.hpp"
 #include "Governor.hpp"
 #include "Spy.hpp"
@@ -8,22 +10,16 @@
 #include "Exceptions.hpp"
 #include <iostream>
 #include <SFML/Graphics.hpp>
+
+
 namespace coup
 {
 
-    GUI::GUI(Game &game) : game(game), window(sf::VideoMode(800, 600), "Coup Game")
+    GUI::GUI(Game &game, bool auto_start) : game(game), window(sf::VideoMode(1024, 720), "Coup Game")
     {
-        if (game.players().empty())
-        {
-            game.add_player("a", "Governor");
-            game.add_player("b", "Spy");
-            game.add_player("c", "Judge");
-            game.add_player("d", "Baron");
-            game.add_player("e", "General");
-            game.add_player("f", "Merchant");
+        debug_auto_start = auto_start;
+        state = GUIState::Setup;
 
-            state = GUIState::Playing;
-        }
         if (!font.loadFromFile("assets/OpenSans.ttf"))
         {
             std::cerr << "Could not load font" << std::endl;
@@ -40,8 +36,31 @@ namespace coup
     {
         while (window.isOpen())
         {
+
             handleEvents();
             render();
+            if (debug_auto_start && !debug_start_done)
+            {
+                try
+                {
+                    game.add_player("a", "Governor");
+                    game.add_player("b", "Spy");
+                    game.add_player("c", "Judge");
+                    game.add_player("d", "Baron");
+                    game.add_player("e", "General");
+                    game.add_player("f", "Merchant");
+                    state = GUIState::Playing;
+                    debug_start_done = true;
+                    error_message.clear();
+                    info_message = "Game auto started with 6 players.";
+                }
+                catch (const std::exception &e)
+                {
+                    handle_gui_exception(e);
+                }
+            }
+
+            sf::sleep(sf::milliseconds(50));
         }
     }
 
@@ -50,20 +69,22 @@ namespace coup
         sf::Event event;
         while (window.pollEvent(event))
         {
+
             try
             {
                 if (event.type == sf::Event::Closed)
                 {
                     window.close();
+                    return;
                 }
 
                 if (event.type == sf::Event::MouseButtonPressed)
                 {
-                    std::cout << "[Event] Mouse Clicked - State=" << (state == GUIState::Setup ? "Setup" : "Playing")
-                              << ", pending_target_action=" << static_cast<int>(pending_target_action)
-                              << ", game_over=" << game.is_game_over() << std::endl;
+                    // ✅ פותח תקיעות מהודעת שגיאה
+                    error_message.clear();
                 }
 
+                // 💡 מסך ההוספה Setup
                 if (state == GUIState::Setup)
                 {
                     if (event.type == sf::Event::TextEntered && event.text.unicode < 128)
@@ -88,21 +109,19 @@ namespace coup
                                 selected_role = roles[i];
                                 error_message.clear();
                                 info_message.clear();
-                                std::cout << "[Click] Role selected: " << selected_role << std::endl;
                             }
                         }
 
                         sf::RectangleShape addBtn = createButton(30, 180, 200, 40, sf::Color(0, 200, 100));
                         if (isMouseOver(addBtn, mouse))
                         {
-                            std::cout << "[Click] Add Player button" << std::endl;
+
                             if (!name_input.empty() && !selected_role.empty())
                             {
                                 if (tryCreateAndAddPlayer(name_input, selected_role))
                                 {
                                     name_input.clear();
                                     selected_role.clear();
-                                    std::cout << "[Info] Player added: " << name_input << std::endl;
                                 }
                             }
                         }
@@ -113,16 +132,16 @@ namespace coup
                             state = GUIState::Playing;
                             error_message.clear();
                             info_message.clear();
-                            std::cout << "[Click] Start Game" << std::endl;
                         }
                     }
                 }
 
+                // 💡 מצב משחק פעיל Playing
                 else if (state == GUIState::Playing && event.type == sf::Event::MouseButtonPressed)
                 {
                     sf::Vector2i mouse = sf::Mouse::getPosition(window);
 
-                    // ✅ בדיקת לחיצה על כפתור new game
+                    // כפתור "משחק חדש" בצד
                     if (persistent_new_game_button.contains(static_cast<float>(mouse.x), static_cast<float>(mouse.y)))
                     {
                         game.reset();
@@ -132,7 +151,7 @@ namespace coup
                         info_message.clear();
                         pending_target_action = PendingTargetAction::None;
                         state = GUIState::Setup;
-                        std::cout << "[Click] New Game (manual)" << std::endl;
+
                         return;
                     }
 
@@ -148,7 +167,6 @@ namespace coup
                             info_message.clear();
                             pending_target_action = PendingTargetAction::None;
                             state = GUIState::Setup;
-                            std::cout << "[Click] New Game" << std::endl;
                         }
                         else
                         {
@@ -159,6 +177,15 @@ namespace coup
 
                     std::string current_turn = game.turn();
                     auto current = game.get_player_by_name(current_turn);
+                    if (!current->has_available_actions())
+                    {
+                        info_message = "Player " + current_turn + " has no actions available... skipping turn.";
+                        error_message.clear();
+                        render();                  // מציג את ההודעה לפני השהייה
+                        sf::sleep(sf::seconds(10)); // אפשר לקצר ל־1 שנייה כדי לשמור על קצב
+                        game.next_turn();          // מעביר את התור לשחקן הבא
+                                           // מונע מהקוד להמשיך עם כפתורים
+                    }
 
                     // ✅ טיפול בלחיצה על special buttons בצד ימין (Undo / Peek)
                     for (const auto &[bounds, target_name, role] : special_buttons_positions)
@@ -174,54 +201,57 @@ namespace coup
                                 if (role == "Governor")
                                 {
                                     auto gov_ptr = game.get_player_by_name(target_name);
-                                    coup::Governor temp_gov(game, target_name);
-                                    temp_gov.set_coins(gov_ptr->coins());
+                                    auto *gov_real = dynamic_cast<Governor *>(gov_ptr.get());
+                                    if (!gov_real)
+                                    {
+                                        throw std::runtime_error("Player is not a Governor");
+                                    }
+
+                                    gov_real->set_coins(original_coins);
 
                                     std::vector<std::shared_ptr<coup::Player>> tax_targets;
-                                    const auto &last_actions = game.last_actions; // חשוב: נדרשת פונקציה accessor
+                                    const auto &last_actions = game.get_last_actions();
 
                                     for (const auto &entry : last_actions)
                                     {
                                         const std::string &player_name = entry.first;
                                         const std::string &action = entry.second;
 
-                                        if (action == "tax")
+                                        if (action == "tax" && game.can_still_undo(player_name) && player_name != target_name)
                                         {
                                             try
                                             {
-                                                std::shared_ptr<coup::Player> p = game.get_player_by_name(player_name);
-                                                if (p != nullptr && p->is_active())
+                                                auto p = game.get_player_by_name(player_name);
+                                                if (p && p->is_active())
                                                 {
                                                     tax_targets.push_back(p);
                                                 }
                                             }
-                                            catch (const std::exception &e)
+                                            catch (...)
                                             {
-                                                std::cerr << "[ERROR] Could not find player: " << e.what() << std::endl;
                                             }
                                         }
                                     }
 
                                     if (!tax_targets.empty())
                                     {
-                                        auto selected = show_tax_target_selection_popup(tax_targets);
-                                        if (selected != nullptr)
+                                        auto selected = show_selection_popup(tax_targets, "Choose Player to undo tax for:", sf::Color(70, 70, 200));
+                                        if (selected)
                                         {
                                             try
                                             {
-                                                temp_gov.undo_tax(*selected);
-                                                gov_ptr->set_coins(temp_gov.coins());
+                                                gov_real->undo_tax(*selected);
                                             }
                                             catch (const std::exception &e)
                                             {
                                                 handle_gui_exception(e);
                                                 info_message.clear();
-                                                render(); // ⬅️ מוודא שהGUI מתעדכן מיידית
                                             }
                                         }
                                         else
                                         {
                                             info_message = "No target selected.";
+                                            pending_target_action = PendingTargetAction::None;
                                         }
                                     }
                                     else
@@ -235,58 +265,79 @@ namespace coup
 
                                 else if (role == "Judge")
                                 {
-                                    coup::Judge temp(game, actor_name);
-                                    temp.set_coins(original_coins);
+                                    auto judge_ptr = game.get_player_by_name(actor_name);
+                                    auto *judge_real = dynamic_cast<Judge *>(judge_ptr.get());
+                                    if (!judge_real)
+                                    {
+                                        throw std::runtime_error("Player is not a Judge");
+                                    }
+
+                                    judge_real->set_coins(original_coins);
+
                                     auto turn_player_ptr = game.get_player_by_name(game.turn());
-                                    temp.undo_bribe(*turn_player_ptr);
-                                    current->set_coins(temp.coins());
+
+                                    try
+                                    {
+                                        judge_real->undo_bribe(*turn_player_ptr);
+                                    }
+                                    catch (const std::exception &e)
+                                    {
+                                        handle_gui_exception(e);
+                                        info_message.clear();
+                                    }
+
+                                    current->set_coins(judge_real->coins());
                                 }
+
                                 else if (role == "General")
                                 {
                                     auto general_ptr = game.get_player_by_name(target_name);
-                                    coup::General temp_general(game, target_name);
-                                    temp_general.set_coins(original_coins);
+                                    auto *general_real = dynamic_cast<General *>(general_ptr.get());
+                                    if (!general_real)
+                                    {
+                                        throw std::runtime_error("Player is not a General");
+                                    }
+
+                                    general_real->set_coins(original_coins);
 
                                     std::vector<std::shared_ptr<coup::Player>> coup_targets;
 
-                                    // איסוף כל השחקנים עליהם יש coup ממתין
                                     for (const auto &entry : game.get_coup_pending_list())
                                     {
                                         const std::string &victim_name = entry.second;
+
                                         try
                                         {
                                             std::shared_ptr<coup::Player> p = game.get_player_by_name(victim_name);
-                                            if (p != nullptr && !p->is_active()) // רוצים רק שחקנים מתים שניתן להחיות
+                                            if (p && !p->is_active() && game.can_still_undo(entry.first))
                                             {
                                                 coup_targets.push_back(p);
                                             }
                                         }
-                                        catch (const std::exception &e)
+                                        catch (...)
                                         {
-                                            std::cerr << "[ERROR] General: could not find coup victim: " << e.what() << std::endl;
                                         }
                                     }
 
                                     if (!coup_targets.empty())
                                     {
-auto selected = show_coup_target_selection_popup(coup_targets);
-                                        if (selected != nullptr)
+                                        auto selected = show_selection_popup(coup_targets, "Choose Player to revive from coup", sf::Color(180, 50, 50));
+                                        if (selected)
                                         {
                                             try
                                             {
-                                                temp_general.undo_coup(*selected);
-                                                general_ptr->set_coins(temp_general.coins());
+                                                general_real->undo_coup(*selected);
                                             }
                                             catch (const std::exception &e)
                                             {
                                                 handle_gui_exception(e);
                                                 info_message.clear();
-                                                render(); // לעדכון מידי של GUI
                                             }
                                         }
                                         else
                                         {
                                             info_message = "No target selected.";
+                                            pending_target_action = PendingTargetAction::None;
                                         }
                                     }
                                     else
@@ -299,42 +350,40 @@ auto selected = show_coup_target_selection_popup(coup_targets);
                                 }
                                 else if (role == "Spy")
                                 {
-                                    std::cout << "[DEBUG] SPY button clicked for: " << target_name << std::endl;
-
                                     auto spy_ptr = game.get_player_by_name(target_name);
-                                    coup::Spy temp_spy(game, target_name);
-                                    temp_spy.set_coins(spy_ptr->coins()); // ← הכסף של השחקן הנכון
+                                    auto *spy_real = dynamic_cast<Spy *>(spy_ptr.get());
+                                    if (!spy_real)
+                                    {
+                                        throw std::runtime_error("Player is not a Spy");
+                                    }
+
+                                    spy_real->set_coins(original_coins);
 
                                     std::vector<std::shared_ptr<coup::Player>> targets;
                                     for (const auto &name : game.players())
                                     {
-                                        if (name != target_name) // 🔁 לא מרגל על עצמו
+                                        if (name != target_name)
                                             targets.push_back(game.get_player_by_name(name));
                                     }
 
-                                    auto selected = show_peek_target_selection_popup(targets);
-                                    if (selected != nullptr)
+                                    auto selected = show_selection_popup(targets, "Choose Player to Peek&Disable arrest for", sf::Color(70, 70, 200));
+                                    if (selected)
                                     {
                                         try
                                         {
-                                            std::cout << "[DEBUG] Spy " << target_name << " peeks on " << selected->get_name() << "\n";
-                                            temp_spy.peek_and_disable(*selected);
-
-                                            // מעדכן את הכסף של השחקן ב־game (ולא current!)
-                                            spy_ptr->set_coins(temp_spy.coins());
-
+                                            spy_real->peek_and_disable(*selected);
                                             show_peek_result_popup(selected->role(), selected->coins());
                                         }
                                         catch (const std::exception &e)
                                         {
                                             handle_gui_exception(e);
                                             info_message.clear();
-                                            render(); // ⬅️ מוודא שהGUI מתעדכן מיידית
                                         }
                                     }
                                     else
                                     {
                                         info_message = "No target selected.";
+                                        pending_target_action = PendingTargetAction::None;
                                     }
 
                                     info_message = game.get_last_action();
@@ -355,27 +404,14 @@ auto selected = show_coup_target_selection_popup(coup_targets);
                     // 🎯 פעולת מטרה - גרסה מתוקנת
                     if (pending_target_action != PendingTargetAction::None)
                     {
-                        int btn_width = 100;
-                        int btn_height = 32;
-                        int start_x = 30;
-                        int start_y = 390;
 
-                        std::cout << "[DEBUG] Handling click at X=" << mouse.x << ", Y=" << mouse.y << "\n";
-
-                        for (size_t i = 0; i < current_target_names.size(); ++i)
+                        for (size_t i = 0; i < target_button_bounds.size(); ++i)
                         {
-                            int x = start_x + static_cast<int>(i) * (btn_width + 12);
-                            sf::FloatRect btnBounds(x, start_y, btn_width, btn_height);
+                            if (target_button_bounds[i].contains(static_cast<float>(mouse.x), static_cast<float>(mouse.y)))
 
-                            std::cout << " - Button #" << i << ": " << current_target_names[i]
-                                      << " Bounds=(" << x << "," << start_y << "," << btn_width << "," << btn_height << ")\n";
-
-                            if (btnBounds.contains(static_cast<float>(mouse.x), static_cast<float>(mouse.y)))
                             {
                                 const std::string &selected_name = current_target_names[i];
                                 auto target = game.get_player_by_name(selected_name);
-
-                                std::cout << "[DEBUG] Selected target: " << selected_name << std::endl;
 
                                 try
                                 {
@@ -391,8 +427,26 @@ auto selected = show_coup_target_selection_popup(coup_targets);
                                 }
                                 catch (const std::exception &e)
                                 {
+                                    std::string err = e.what();
                                     handle_gui_exception(e);
                                     info_message.clear();
+
+                                    if (err.find("must perform a coup") != std::string::npos)
+                                    {
+                                        // העדכון הזה קריטי: יוצרים מחדש את תפריט ה־Coup
+                                        pending_target_action = PendingTargetAction::Coup;
+
+                                        current_target_names.clear();
+                                        for (const std::string &name : game.players())
+                                        {
+                                            if (name != game.turn())
+                                                current_target_names.push_back(name);
+                                        }
+
+                                        error_message = "you must perform a coup, choose target:";
+                                        info_message.clear(); // לא מציגים שגיאת coup
+                                        return;               // ✅ מונע את reset של pending_target_action בסוף הפונקציה
+                                    }
                                 }
 
                                 pending_target_action = PendingTargetAction::None;
@@ -400,7 +454,7 @@ auto selected = show_coup_target_selection_popup(coup_targets);
                             }
                         }
 
-                        // לחיצה לא על אף מטרה
+                        // לחיצה שלא על אף אחד מהכפתורים
                         pending_target_action = PendingTargetAction::None;
                         info_message.clear();
                         return;
@@ -416,16 +470,26 @@ auto selected = show_coup_target_selection_popup(coup_targets);
                             try
                             {
                                 if (pair.second == "Gather")
+                                {
                                     current->gather();
+                                    info_message = game.get_last_action();
+                                }
                                 else if (pair.second == "Tax")
+                                {
                                     current->tax();
+                                    info_message = game.get_last_action();
+                                }
                                 else if (pair.second == "Bribe")
+                                {
                                     current->bribe();
+                                    info_message = game.get_last_action();
+                                }
                                 else if (pair.second == "Invest")
                                 {
                                     if (auto *baron = dynamic_cast<Baron *>(current.get()))
                                     {
                                         baron->invest();
+                                        info_message = game.get_last_action();
                                     }
                                     else
                                     {
@@ -435,18 +499,30 @@ auto selected = show_coup_target_selection_popup(coup_targets);
                                 else if (pair.second == "Arrest")
                                 {
                                     pending_target_action = PendingTargetAction::Arrest;
+                                    info_message = "Choose a player to arrest:";
                                 }
                                 else if (pair.second == "Sanction")
                                 {
                                     pending_target_action = PendingTargetAction::Sanction;
+                                    info_message = "Choose a player to sanction:";
                                 }
                                 else if (pair.second == "Coup")
                                 {
                                     pending_target_action = PendingTargetAction::Coup;
+                                    info_message = "Choose a player to coup:";
                                 }
 
-                                if (pending_target_action != PendingTargetAction::None)
+                                error_message.clear();
+                            }
+                            catch (const std::exception &e)
+                            {
+                                std::string err = e.what();
+                                handle_gui_exception(e);
+                                info_message.clear();
+
+                                if (err.find("must perform a coup") != std::string::npos)
                                 {
+                                    pending_target_action = PendingTargetAction::Coup;
                                     current_target_names.clear();
                                     for (const std::string &name : game.players())
                                     {
@@ -454,171 +530,23 @@ auto selected = show_coup_target_selection_popup(coup_targets);
                                             current_target_names.push_back(name);
                                     }
 
-                                    info_message = "בחר שחקן לביצוע: " + pair.second;
+                                    error_message = "you must perform a coup, choose target:";
+                                    info_message.clear();
                                 }
-                                else
-                                {
-                                    info_message = game.get_last_action();
-                                }
-
-                                error_message.clear();
-                            }
-                            catch (const std::exception &e)
-                            {
-                                handle_gui_exception(e);
-                                info_message.clear();
                             }
 
-                            return; // סיימנו את הטיפול בלחיצה הזו
+                            return;
                         }
                     }
                 }
             }
             catch (const std::exception &e)
             {
-                error_message = std::string("Internal error") + e.what();
                 std::cerr << "[GUI Exception] " << e.what() << std::endl;
+                handle_gui_exception(e);
+                pending_target_action = PendingTargetAction::None;
             }
         }
-    }
-    std::shared_ptr<coup::Player> GUI::show_tax_target_selection_popup(
-        const std::vector<std::shared_ptr<coup::Player>> &targets)
-    {
-        const int width = 500;
-        const int height = 80 + static_cast<int>(targets.size()) * 50;
-
-        sf::RenderWindow popup(sf::VideoMode(width, height), "Choose Player to undo tax for:", sf::Style::Titlebar | sf::Style::Close);
-        sf::Font font;
-        if (!font.loadFromFile("assets/OpenSans.ttf"))
-        {
-            std::cerr << "Failed to load font.\n";
-            return nullptr;
-        }
-
-        std::vector<sf::RectangleShape> buttons;
-        std::vector<sf::Text> labels;
-
-        for (size_t i = 0; i < targets.size(); ++i)
-        {
-            sf::RectangleShape btn(sf::Vector2f(400, 40));
-            btn.setPosition(50, 40 + static_cast<float>(i) * 50);
-            btn.setFillColor(sf::Color(70, 70, 200));
-            buttons.push_back(btn);
-
-            sf::Text txt;
-            txt.setFont(font);
-            txt.setCharacterSize(18);
-            txt.setFillColor(sf::Color::White);
-            txt.setString(targets[i]->get_name() + " (" + targets[i]->role() + ")");
-            txt.setPosition(btn.getPosition().x + 10, btn.getPosition().y + 7);
-            labels.push_back(txt);
-        }
-
-        while (popup.isOpen())
-        {
-            sf::Event event;
-            while (popup.pollEvent(event))
-            {
-                if (event.type == sf::Event::Closed)
-                {
-                    popup.close();
-                    return nullptr;
-                }
-
-                if (event.type == sf::Event::MouseButtonPressed)
-                {
-                    sf::Vector2f mpos(sf::Mouse::getPosition(popup));
-                    for (size_t i = 0; i < buttons.size(); ++i)
-                    {
-                        if (buttons[i].getGlobalBounds().contains(mpos))
-                        {
-                            popup.close();
-                            return targets[i];
-                        }
-                    }
-                }
-            }
-
-            popup.clear(sf::Color(30, 30, 30));
-            for (size_t i = 0; i < buttons.size(); ++i)
-            {
-                popup.draw(buttons[i]);
-                popup.draw(labels[i]);
-            }
-            popup.display();
-        }
-
-        return nullptr;
-    }
-
-    std::shared_ptr<coup::Player> GUI::show_peek_target_selection_popup(
-        const std::vector<std::shared_ptr<coup::Player>> &targets)
-    {
-        const int width = 500;
-        const int height = 80 + static_cast<int>(targets.size()) * 50;
-
-        sf::RenderWindow popup(sf::VideoMode(width, height), "Choose Player to Peek&Disable arrest for", sf::Style::Titlebar | sf::Style::Close);
-        sf::Font font;
-        if (!font.loadFromFile("assets/OpenSans.ttf"))
-        {
-            std::cerr << "Failed to load font.\n";
-            return nullptr;
-        }
-
-        std::vector<sf::RectangleShape> buttons;
-        std::vector<sf::Text> labels;
-
-        for (size_t i = 0; i < targets.size(); ++i)
-        {
-            sf::RectangleShape btn(sf::Vector2f(400, 40));
-            btn.setPosition(50, 40 + static_cast<float>(i) * 50);
-            btn.setFillColor(sf::Color(70, 70, 200));
-            buttons.push_back(btn);
-
-            sf::Text txt;
-            txt.setFont(font);
-            txt.setCharacterSize(18);
-            txt.setFillColor(sf::Color::White);
-            txt.setString(targets[i]->get_name() + " (" + targets[i]->role() + ")");
-            txt.setPosition(btn.getPosition().x + 10, btn.getPosition().y + 7);
-            labels.push_back(txt);
-        }
-
-        while (popup.isOpen())
-        {
-            sf::Event event;
-            while (popup.pollEvent(event))
-            {
-                if (event.type == sf::Event::Closed)
-                {
-                    popup.close();
-                    return nullptr;
-                }
-
-                if (event.type == sf::Event::MouseButtonPressed)
-                {
-                    sf::Vector2f mpos(sf::Mouse::getPosition(popup));
-                    for (size_t i = 0; i < buttons.size(); ++i)
-                    {
-                        if (buttons[i].getGlobalBounds().contains(mpos))
-                        {
-                            popup.close();
-                            return targets[i];
-                        }
-                    }
-                }
-            }
-
-            popup.clear(sf::Color(30, 30, 30));
-            for (size_t i = 0; i < buttons.size(); ++i)
-            {
-                popup.draw(buttons[i]);
-                popup.draw(labels[i]);
-            }
-            popup.display();
-        }
-
-        return nullptr;
     }
 
     void GUI::show_peek_result_popup(const std::string &role, int coins)
@@ -656,75 +584,81 @@ auto selected = show_coup_target_selection_popup(coup_targets);
             popup.display();
         }
     }
-std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
-    const std::vector<std::shared_ptr<coup::Player>> &targets)
-{
-    const int width = 500;
-    const int height = 80 + static_cast<int>(targets.size()) * 50;
-
-    sf::RenderWindow popup(sf::VideoMode(width, height), "Choose Player to revive from coup", sf::Style::Titlebar | sf::Style::Close);
-    sf::Font font;
-    if (!font.loadFromFile("assets/OpenSans.ttf"))
+    std::shared_ptr<coup::Player> GUI::show_selection_popup(
+        const std::vector<std::shared_ptr<coup::Player>> &targets,
+        const std::string &title,
+        const sf::Color &button_color)
     {
-        std::cerr << "Failed to load font.\n";
-        return nullptr;
-    }
+        const int width = 500;
+        const int height = 80 + static_cast<int>(targets.size()) * 50;
 
-    std::vector<sf::RectangleShape> buttons;
-    std::vector<sf::Text> labels;
-
-    for (size_t i = 0; i < targets.size(); ++i)
-    {
-        sf::RectangleShape btn(sf::Vector2f(400, 40));
-        btn.setPosition(50, 40 + static_cast<float>(i) * 50);
-        btn.setFillColor(sf::Color(180, 50, 50));  // צבע שונה לזיהוי
-        buttons.push_back(btn);
-
-        sf::Text txt;
-        txt.setFont(font);
-        txt.setCharacterSize(18);
-        txt.setFillColor(sf::Color::White);
-        txt.setString(targets[i]->get_name() + " (" + targets[i]->role() + ")");
-        txt.setPosition(btn.getPosition().x + 10, btn.getPosition().y + 7);
-        labels.push_back(txt);
-    }
-
-    while (popup.isOpen())
-    {
-        sf::Event event;
-        while (popup.pollEvent(event))
+        sf::RenderWindow popup(sf::VideoMode(width, height), title, sf::Style::Titlebar | sf::Style::Close);
+        sf::Font font;
+        if (!font.loadFromFile("assets/OpenSans.ttf"))
         {
-            if (event.type == sf::Event::Closed)
-            {
-                popup.close();
-                return nullptr;
-            }
+            std::cerr << "Failed to load font.\n";
+            return nullptr;
+        }
 
-            if (event.type == sf::Event::MouseButtonPressed)
+        std::vector<sf::RectangleShape> buttons;
+        std::vector<sf::Text> labels;
+
+        for (size_t i = 0; i < targets.size(); ++i)
+        {
+            sf::RectangleShape btn(sf::Vector2f(400, 40));
+            btn.setPosition(50, 40 + static_cast<float>(i) * 50);
+            btn.setFillColor(button_color);
+            buttons.push_back(btn);
+
+            sf::Text txt;
+            txt.setFont(font);
+            txt.setCharacterSize(18);
+            txt.setFillColor(sf::Color::White);
+            txt.setString(targets[i]->get_name() + " (" + targets[i]->role() + ")");
+            txt.setPosition(btn.getPosition().x + 10, btn.getPosition().y + 7);
+            labels.push_back(txt);
+        }
+
+        while (popup.isOpen())
+        {
+            sf::Event event;
+            while (popup.pollEvent(event))
             {
-                sf::Vector2f mpos(sf::Mouse::getPosition(popup));
-                for (size_t i = 0; i < buttons.size(); ++i)
+                if (event.type == sf::Event::Closed)
                 {
-                    if (buttons[i].getGlobalBounds().contains(mpos))
+                    popup.close();
+                    return nullptr; // ✅ קריטי כדי למנוע nullptr שימוש שגוי
+                }
+
+                if (event.type == sf::Event::MouseButtonPressed)
+                {
+                    sf::Vector2f mpos(sf::Mouse::getPosition(popup));
+                    for (size_t i = 0; i < buttons.size(); ++i)
                     {
-                        popup.close();
-                        return targets[i];
+                        if (buttons[i].getGlobalBounds().contains(mpos))
+                        {
+                            popup.close();
+                            return targets[i]; // ✅ יחזור עם הבחירה
+                        }
                     }
                 }
             }
+
+            if (!popup.isOpen())
+                break;
+
+            popup.clear(sf::Color(30, 30, 30));
+            for (size_t i = 0; i < buttons.size(); ++i)
+            {
+                popup.draw(buttons[i]);
+                popup.draw(labels[i]);
+            }
+            popup.display();
+            sf::sleep(sf::milliseconds(20));
         }
 
-        popup.clear(sf::Color(25, 25, 25));
-        for (size_t i = 0; i < buttons.size(); ++i)
-        {
-            popup.draw(buttons[i]);
-            popup.draw(labels[i]);
-        }
-        popup.display();
+        return nullptr; // ✅ אם יצאנו מהלולאה בלי בחירה
     }
-
-    return nullptr;
-}
 
     void GUI::drawTargetSelectionButtons()
     {
@@ -734,18 +668,19 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
         std::string current_name = game.turn();
         std::vector<std::string> all = game.players();
 
-        current_target_names.clear(); // ⛔️ חשוב: נבנה את הרשימה תוך כדי ציור
+        current_target_names.clear();
+        target_button_bounds.clear(); // ⬅️ חשוב!
+
         for (const auto &name : all)
         {
             if (name != current_name)
                 current_target_names.push_back(name);
         }
 
-        // ✅ קבע רוחב קבוע
-        int btn_width = 100;
+        int btn_width = 140;
         int btn_height = 32;
         int start_x = 30;
-        int start_y = 390;
+        int start_y = window.getSize().y - 120;
 
         drawText("Targets:", start_x, start_y - 25, 16, sf::Color(180, 180, 255));
 
@@ -756,22 +691,32 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
 
             sf::RectangleShape btn = createButton(x, start_y, btn_width, btn_height, sf::Color(160, 80, 80));
             window.draw(btn);
-            drawText(name, x + 10, start_y + 8, 14, sf::Color::White);
+
+            auto player = game.get_player_by_name(name);
+            std::string label = name + " (" + player->role() + ")";
+            drawText(label, x + 10, start_y + 8, 14, sf::Color::White);
+
+            target_button_bounds.push_back(btn.getGlobalBounds()); // ⬅️ מוסיפים את המיקום ללחיצה
         }
     }
-
     void GUI::handle_gui_exception(const std::exception &e)
     {
         error_message = e.what();
         info_message.clear();
         std::cerr << "[GUI Exception] " << e.what() << std::endl;
-    }
-    void GUI::handle_gui_info(const std::string &msg)
-    {
-        info_message = msg;
-        error_message.clear();
-        std::cout << "[GUI Info] " << msg << std::endl;
-        game.log_action("[Info] " + msg);
+
+        // הוספה חשובה: עדכון מצב כדי שהמשתמש יוכל לבצע פעולה מחדש
+        pending_target_action = PendingTargetAction::None;
+
+        // נסה להכריח רינדור מחדש אם תקוע
+        try
+        {
+            render();
+        }
+        catch (const std::exception &re)
+        {
+            std::cerr << "[Render Exception] " << re.what() << std::endl;
+        }
     }
 
     void GUI::drawSetupScreen()
@@ -831,7 +776,7 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
     {
         // מחיקת רקע קודם של הטקסט
         sf::RectangleShape bg(sf::Vector2f(600, 40));
-        bg.setPosition(30, 30);
+        bg.setPosition(WINDOW_WIDTH - 600 - 30, 30);
         bg.setFillColor(sf::Color(30, 30, 30)); // צבע רקע כמו חלון
         window.draw(bg);
 
@@ -841,47 +786,60 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
 
     void GUI::drawActionButtons(std::shared_ptr<Player> player)
     {
-        action_buttons_bounds.clear(); // ✅ ננקה את הלחיצות הקודמות
+        action_buttons_bounds.clear();
 
         std::vector<std::string> basic = {"Gather", "Tax", "Bribe"};
         int btn_width = 100;
         int btn_height = 35;
         int spacing = 110;
+
         int start_x = 30;
         int start_y = 80;
 
+        // כפתורים רגילים (פעולה מיידית)
         for (size_t i = 0; i < basic.size(); ++i)
         {
-            auto btn = createButton(start_x + i * spacing, start_y, btn_width, btn_height, sf::Color(70, 130, 180));
+            int x = start_x + static_cast<int>(i) * spacing;
+            sf::RectangleShape btn = createButton(x, start_y, btn_width, btn_height, sf::Color(70, 130, 180));
+            btn.setPosition(x, start_y); // ✅ מוודא מיקום
             window.draw(btn);
-            drawText(basic[i], start_x + i * spacing + 10, start_y + 8, 16);
-            action_buttons_bounds.push_back({btn.getGlobalBounds(), basic[i]}); // ✅ נשמור את המיקום והפעולה
+            drawText(basic[i], x + 10, start_y + 8, 16);
+            action_buttons_bounds.push_back({btn.getGlobalBounds(), basic[i]});
         }
 
+        // כפתור Invest עבור Baron
         if (player->role() == "Baron")
         {
             int i = static_cast<int>(basic.size());
-            auto btn = createButton(start_x + i * spacing, start_y, btn_width, btn_height, sf::Color(255, 180, 90));
+            int x = start_x + i * spacing;
+            sf::RectangleShape btn = createButton(x, start_y, btn_width, btn_height, sf::Color(255, 180, 90));
+            btn.setPosition(x, start_y);
             window.draw(btn);
-            drawText("Invest", start_x + i * spacing + 10, start_y + 8, 16);
+            drawText("Invest", x + 10, start_y + 8, 16);
             action_buttons_bounds.push_back({btn.getGlobalBounds(), "Invest"});
         }
 
+        // כפתורים של פעולת מטרה (Arrest, Sanction, Coup)
         std::vector<std::string> target = {"Arrest", "Sanction", "Coup"};
         for (size_t i = 0; i < target.size(); ++i)
         {
-            auto btn = createButton(start_x + i * spacing, start_y + 60, btn_width, btn_height, sf::Color(200, 120, 80));
+            int x = start_x + static_cast<int>(i) * spacing;
+            int y = start_y + 60;
+
+            sf::RectangleShape btn = createButton(x, y, btn_width, btn_height, sf::Color(200, 120, 80));
+            btn.setPosition(x, y); // ✅ קריטי לשמירה מדויקת של הגבולות
             window.draw(btn);
-            drawText(target[i], start_x + i * spacing + 10, start_y + 68, 16);
+            drawText(target[i], x + 10, y + 8, 16);
             action_buttons_bounds.push_back({btn.getGlobalBounds(), target[i]});
         }
 
+        // ציור כפתורי מטרה אם נדרש
         drawTargetSelectionButtons();
     }
 
     void GUI::drawSpecialButtonsPanel()
     {
-        const auto &players = game.players();
+        special_buttons_positions.clear();
         size_t y = 20;
         int padding_x = 8;
         int padding_y = 5;
@@ -890,35 +848,49 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
         int button_width = 90;
         int button_height = 28;
 
-        drawText("Out Of Turn Actions", 530, y, 18, sf::Color(180, 180, 255));
-        y += 30;
-
-        // 🧮 שלב 1: חישוב רוחב מקסימלי נדרש למסגרת
+        // שלב 1: חישוב רוחב מקסימלי של שם+תפקיד
         int max_label_width = 0;
-        for (const std::string &name : players)
+        for (const auto &p : game.get_all_players_raw())
         {
-            auto p = game.get_player_by_name(name);
-            std::string role = p->role();
-            std::string label = name + " (" + role + ")";
-
-            if (role == "Governor" || role == "Spy" || role == "General" || role == "Judge")
+            std::string label = p->get_name() + " (" + p->role() + ")";
+            if ((p->is_active() || p->role() == "General"))
             {
-                int label_px = label.size() * 8; // הערכה פשוטה
-                if (label_px > max_label_width)
-                {
-                    max_label_width = label_px;
-                }
+                int label_px = label.size() * 8; // הערכה
+                max_label_width = std::max(max_label_width, label_px);
             }
         }
 
         int box_width = max_label_width + button_width + spacing + 2 * padding_x;
+        int box_x = static_cast<int>(window.getSize().x) - box_width - 30;
 
-        // 🎨 שלב 2: ציור כל השחקנים
-        for (const std::string &name : players)
+        // הצגת כותרת מעל המסגרת
+        drawText("Out Of Turn Actions", box_x, y, 18, sf::Color(180, 180, 255));
+        y += 30;
+
+        // שלב 2: ציור הכפתורים המיוחדים
+        for (const auto &p : game.get_all_players_raw())
         {
-            auto p = game.get_player_by_name(name);
+            std::string name = p->get_name();
             std::string role = p->role();
             std::string label = name + " (" + role + ")";
+
+            bool include = p->is_active();
+
+            // עבור General מת גם ניתן לכלול אם ניתן לבטל עליו coup
+            if (!include && role == "General")
+            {
+                for (const auto &entry : game.get_coup_pending_list())
+                {
+                    if (entry.second == name && game.can_still_undo(entry.first))
+                    {
+                        include = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!include)
+                continue;
 
             std::string action_text;
             if (role == "Governor")
@@ -932,9 +904,6 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
 
             if (!action_text.empty())
             {
-                int box_x = 530;
-
-                // מסגרת אחידה בגודל
                 sf::RectangleShape box(sf::Vector2f(box_width, button_height + 2 * padding_y));
                 box.setPosition(box_x, y);
                 box.setFillColor(sf::Color(30, 30, 30));
@@ -942,10 +911,8 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
                 box.setOutlineThickness(1.0f);
                 window.draw(box);
 
-                // טקסט בצד שמאל
                 drawText(label, box_x + padding_x, y + padding_y, text_size);
 
-                // כפתור בצד ימין של המסגרת
                 int btn_x = box_x + box_width - button_width - padding_x;
                 sf::RectangleShape btn = createButton(btn_x, y + padding_y, button_width, button_height, sf::Color(120, 120, 255));
                 window.draw(btn);
@@ -956,33 +923,38 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
             }
         }
     }
-
     void GUI::drawTurnInfo()
     {
-        std::string current_turn = game.turn();
+        float box_x = 30;
+        float box_y = 430; // אותו y לשתי ההודעות
+        float box_width = 700;
+        float box_height = 80;
+        float padding_left = 10;
+        float padding_top = 10;
 
         if (!error_message.empty())
         {
-
-            sf::RectangleShape box(sf::Vector2f(600, 80));
+            sf::RectangleShape box(sf::Vector2f(box_width, box_height));
             box.setFillColor(sf::Color(80, 0, 0));
             box.setOutlineColor(sf::Color::Red);
             box.setOutlineThickness(2);
-            box.setPosition(30, 450);
+            box.setPosition(box_x, box_y);
             window.draw(box);
-            drawText("Error:", 40, 460, 20, sf::Color::White);
-            drawText(error_message, 40, 490, 18, sf::Color(255, 180, 180));
+
+            drawText("Error:", box_x + padding_left, box_y + padding_top, 20, sf::Color::White);
+            drawText(error_message, box_x + padding_left, box_y + padding_top + 30, 18, sf::Color(255, 180, 180));
         }
         else if (!info_message.empty())
         {
-            sf::RectangleShape box(sf::Vector2f(500, 80));
+            sf::RectangleShape box(sf::Vector2f(box_width, box_height));
             box.setFillColor(sf::Color(80, 80, 0));
             box.setOutlineColor(sf::Color::Yellow);
             box.setOutlineThickness(2);
-            box.setPosition(30, 450);
+            box.setPosition(box_x, box_y);
             window.draw(box);
-            drawText("Action:", 40, 460, 20, sf::Color::White);
-            drawText(info_message, 40, 490, 18, sf::Color(255, 255, 180));
+
+            drawText("Action:", box_x + padding_left, box_y + padding_top, 20, sf::Color::White);
+            drawText(info_message, box_x + padding_left, box_y + padding_top + 30, 18, sf::Color(255, 255, 180));
         }
     }
 
@@ -1057,11 +1029,72 @@ std::shared_ptr<coup::Player> GUI::show_coup_target_selection_popup(
                 drawTurnInfo();
 
                 // ✅ צייר כפתור new game קבוע
-                sf::RectangleShape newGameBtn = createButton(630, 530, 140, 40, sf::Color(100, 200, 100));
+                int button_width = 140;
+                int button_height = 40;
+                int margin = 30;
+
+                int btn_x = window.getSize().x - button_width - margin;
+                int btn_y = window.getSize().y - button_height - margin;
+
+                // 🧮 מידע על שחקנים חיים
+                auto alive_players = game.players();
+                int row_height = 26;
+                int box_width = 260;
+                int padding = 10;
+                int list_height = static_cast<int>(alive_players.size()) * row_height + 2 * padding;
+
+                // ✅ מיקום הטבלה - קצת מעל new game, מיושר לימין
+                int box_x = btn_x - 110;
+                int box_y = btn_y - list_height - 15;
+                drawText("Active Players:", box_x, box_y - 30, 18, sf::Color(200, 200, 255));
+
+                // 📦 רקע הטבלה
+                sf::RectangleShape bg(sf::Vector2f(box_width, list_height));
+                bg.setPosition(box_x, box_y);
+                bg.setFillColor(sf::Color(40, 40, 80, 220)); // כחול כהה חצי שקוף
+                bg.setOutlineColor(sf::Color::White);
+                bg.setOutlineThickness(2);
+                window.draw(bg);
+
+                // 🖊️ כיתוב לכל שחקן
+                int text_x = box_x + 10;
+                int text_y = box_y + padding;
+                for (const std::string &name : alive_players)
+                {
+                    auto p = game.get_player_by_name(name);
+                    std::string label = name + " (" + p->role() + ")";
+                    drawText(label, text_x, text_y, 16, sf::Color::White);
+                    text_y += row_height;
+                }
+
+                // 🟩 כפתור new game
+                sf::RectangleShape newGameBtn = createButton(
+                    btn_x,
+                    btn_y,
+                    button_width,
+                    button_height,
+                    sf::Color(100, 200, 100));
                 window.draw(newGameBtn);
-                drawText("New Game", 650, 540, 16, sf::Color::Black);
+
+                // טקסט ממורכז בכפתור
+                sf::FloatRect newGameBounds = newGameBtn.getGlobalBounds();
+                float center_x = newGameBounds.left + (newGameBounds.width - 80) / 2;
+                float center_y = newGameBounds.top + 10;
+                drawText("New Game", center_x, center_y, 16, sf::Color::Black);
+
                 persistent_new_game_button = newGameBtn.getGlobalBounds();
             }
+
+            // ציור כפתור New Game
+            if (state == GUIState::Setup || game.is_game_over())
+            {
+                sf::RectangleShape newGameBtn = createButton(250, 300, 300, 50, sf::Color(100, 200, 100));
+                window.draw(newGameBtn);
+                drawText("Start New Game", 270, 310, 20);
+            }
+
+            // ציור הודעות שגיאה או מידע
+            drawTurnInfo();
         }
         catch (const std::exception &e)
         {

@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #pragma once
 
 #include "Player.hpp"
@@ -15,7 +17,7 @@ namespace coup {
         void tax() override;
 
         // יכולת לבטל פעולה של tax לשחקנים אחרים
-        void undo_tax(Player& target);
+        void undo_tax(Player& target) override;
     };
 
 }

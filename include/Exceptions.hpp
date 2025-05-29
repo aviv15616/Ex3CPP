@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #pragma once
 
 #include <stdexcept>
@@ -80,7 +82,7 @@ namespace coup {
 
     class BlockNotAvailableException : public CoupException {
     public:
-        BlockNotAvailableException(const std::string& action)
+        explicit BlockNotAvailableException(const std::string& action)
             : CoupException("No player is allowed to block action: " + action) {}
     };
 
@@ -94,7 +96,7 @@ namespace coup {
     // 🔹 חריגות פנימיות (שימוש בעתיד אפשרי)
     class InternalLogicException : public CoupException {
     public:
-        InternalLogicException(const std::string& msg)
+        explicit InternalLogicException(const std::string& msg)
             : CoupException("Internal error: " + msg) {}
     };
 }

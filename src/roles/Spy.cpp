@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #include "Spy.hpp"
 #include "Game.hpp"
 #include "Exceptions.hpp"

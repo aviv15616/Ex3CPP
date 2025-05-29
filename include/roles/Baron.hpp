@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #pragma once
 
 #include "Player.hpp"
@@ -13,6 +15,6 @@ namespace coup {
         void invest();
 
         // תגובה פסיבית כאשר מותקף ב-saction (פיצוי של 1)
-        void on_sanction();
+        void on_sanction() override;
     };
 }

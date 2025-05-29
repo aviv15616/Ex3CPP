@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #include "Judge.hpp"
 #include "Exceptions.hpp"
 #include "Game.hpp"
@@ -35,11 +37,6 @@ namespace coup {
         game->undo_bribe = true;
     }
 
-    void Judge::on_sanction() {
-        // במקרה ששחקן תקף את השופט, עליו לשלם עוד מטבע
-        // נניח שהשחקן שקורא את sanction אחראי לבדוק את זה
-        // ולכן לא נבצע פעולה כאן, אלא הלוגיקה תהיה אצל התוקף
-        std::cout << "[Judge] " << name << " was sanctioned." << std::endl;
-    }
+
 
 } // namespace coup

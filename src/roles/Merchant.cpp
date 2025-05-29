@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #include "Merchant.hpp"
 #include "Exceptions.hpp"
 #include "Game.hpp"
@@ -20,13 +22,6 @@ namespace coup {
         }
     }
 
-    // במקרה של arrest - משלם 2 לקופה (לא מועבר ל-attacker)
-    void Merchant::on_arrest() {
-        if (coins() < 2) {
-            throw NotEnoughCoinsException(2, coins());
-        }
-        set_coins(coins() - 2);
-        std::cout << "[Merchant] " << name << " paid 2 coins to pot after arrest. Remaining: " << coins() << std::endl;
-    }
+
 
 } // namespace coup

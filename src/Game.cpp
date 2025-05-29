@@ -1,3 +1,6 @@
+// Game.cpp - Game Logic Implementation
+// Anksilae@gmail.com
+
 #include "Game.hpp"
 #include "Exceptions.hpp"
 #include <iostream>
@@ -12,383 +15,301 @@
 
 using namespace std;
 
-namespace coup
-{
+namespace coup {
 
-    Game::Game()
-    {
-        std::cout << "[Game] Initialized new game.\n";
-        this->log_action("[Game] Initialized new game.");
-    }
+// ==============================
+// Constructor & Initialization
+// ==============================
 
-    void Game::assert_game_active() const
-    {
-        if (game_over)
-            throw GameAlreadyOverException();
-    }
-    bool Game::is_name_taken(const std::string &name) const
-    {
-        for (const auto &p : players_list)
-        {
-            if (p->get_name() == name)
-                return true;
-        }
-        return false;
-    }
-    void Game::log_action(const std::string &text)
-    {
-        last_action = text;
-        std::cout << text << std::endl;
-    }
-
-    std::shared_ptr<Player> Game::add_player(const std::string &name, const std::string &role)
-    {
-        assert_game_active();
-
-        for (const auto &p : players_list)
-        {
-            if (p->get_name() == name)
-            {
-                throw DuplicatePlayerNameException(name);
-            }
-        }
-
-        std::shared_ptr<Player> player;
-
-        if (role == "Governor")
-            player = std::make_shared<Governor>(*this, name);
-        else if (role == "Spy")
-            player = std::make_shared<Spy>(*this, name);
-        else if (role == "Judge")
-            player = std::make_shared<Judge>(*this, name);
-        else if (role == "Baron")
-            player = std::make_shared<Baron>(*this, name);
-        else if (role == "General")
-            player = std::make_shared<General>(*this, name);
-        else if (role == "Merchant")
-            player = std::make_shared<Merchant>(*this, name);
-        else
-            throw InvalidActionException("Unknown role: " + role);
-
-        players_list.push_back(player);
-        player->set_active(true);
-        std::cout << "[Game] Added player: " << name << " (" << role << ")\n";
-        return player;
-    }
-    void Game:: add_to_coup(const std::string &attacker, const std::string &target)
-    {
-        coup_pending_list.emplace_back(attacker, target);
-        std::cout << "[Coup] " << attacker << " marked for coup against " << target << std::endl;
-    }
-const std::vector<std::pair<std::string, std::string>>& Game::get_coup_pending_list() const
-{
-    return coup_pending_list;
+Game::Game() {
+    std::cout << "[Game] Initialized new game.\n";
+    this->log_action("[Game] Initialized new game.");
 }
-    void Game::add_player(const std::shared_ptr<Player> &p)
-    {
-        assert_game_active();
 
-        for (const auto &existing : players_list)
-        {
-            if (existing->get_name() == p->get_name())
-            {
-                throw DuplicatePlayerNameException(p->get_name());
-            }
-        }
+// ======================
+// State & Validation
+// ======================
 
-        players_list.push_back(p);
-        std::cout << "[Game] Added player: " << p->get_name() << " (" << p->role() << ")\n";
+void Game::assert_game_active() const {
+    if (game_over)
+        throw GameAlreadyOverException();
+}
+
+bool Game::is_game_over() const {
+    return game_over;
+}
+
+// ======================
+// Logging
+// ======================
+
+void Game::log_action(const std::string &text) {
+    last_action = text;
+}
+
+// ======================
+// Player Management
+// ======================
+
+std::shared_ptr<Player> Game::add_player(const std::string &name, const std::string &role) {
+    assert_game_active();
+
+    if (std::any_of(players_list.begin(), players_list.end(), [&](const auto& p) { return p->get_name() == name; })) {
+        throw DuplicatePlayerNameException(name);
     }
 
-    string Game::turn() const
-    {
-        if (players_list.empty())
-        {
-            throw InvalidActionException("No players in game.");
-        }
-        return players_list.at(current_turn_index)->get_name();
+    std::shared_ptr<Player> player;
+    if      (role == "Governor") player = std::make_shared<Governor>(*this, name);
+    else if (role == "Spy")      player = std::make_shared<Spy>(*this, name);
+    else if (role == "Judge")    player = std::make_shared<Judge>(*this, name);
+    else if (role == "Baron")    player = std::make_shared<Baron>(*this, name);
+    else if (role == "General")  player = std::make_shared<General>(*this, name);
+    else if (role == "Merchant") player = std::make_shared<Merchant>(*this, name);
+    else throw InvalidActionException("Unknown role: " + role);
+
+    players_list.push_back(player);
+    player->set_active(true);
+    std::cout << "[Game] Added player: " << name << " (" << role << ")\n";
+    return player;
+}
+
+void Game::add_player(const std::shared_ptr<Player> &p) {
+    assert_game_active();
+    if (std::any_of(players_list.begin(), players_list.end(), [&](const auto& existing) { return existing->get_name() == p->get_name(); })) {
+        throw DuplicatePlayerNameException(p->get_name());
     }
-    void Game::perform_action(const std::string &action_name, const std::string &by)
-    {
-        perform_action(action_name, by, "");
-    }
-    void Game::perform_action(const std::string &action_name, const std::string &by, const std::string &target_name)
-    {
-        assert_game_active();
+    players_list.push_back(p);
+    std::cout << "[Game] Added player: " << p->get_name() << " (" << p->role() << ")\n";
+}
 
-        // ❌ אל תבדוק turn()
-        last_actions[by] = action_name;
+std::vector<std::string> Game::players() const {
+    std::vector<std::string> active;
+    for (const auto &p : players_list)
+        if (p->is_active()) active.push_back(p->get_name());
+    return active;
+}
 
-        auto actor = get_player_by_name(by);
-        std::string log_line = "[" + action_name + "] performed by " + by +
-                               " (Coins: " + std::to_string(actor->coins()) + ")";
+std::vector<std::shared_ptr<Player>> Game::get_all_players_raw() const {
+    return players_list;
+}
+const std::unordered_map<std::string, std::string>& Game::get_last_actions() const {
+    return last_actions;
+}
 
-        if (!target_name.empty())
-        {
-            try
-            {
-                auto target = get_player_by_name(target_name);
-                log_line += " on " + target_name +
-                            " (Coins: " + std::to_string(target->coins()) + ")";
-            }
-            catch (...)
-            {
-                log_line += " → " + target_name + " (Unknown)";
-            }
-        }
+std::shared_ptr<Player> Game::get_player_by_name(const std::string &name) {
+    assert_game_active();
+    for (auto &p : players_list)
+        if (p->get_name() == name)
+            return p;
+    throw PlayerNotFoundException(name);
+}
 
-        std::cout << log_line << std::endl;
-        this->log_action(log_line);
-    }
-
-    bool Game::can_undo_action(const std::string &target_name, const std::string &expected_action) const
-    {
-        auto it = last_actions.find(target_name);
-        if (it == last_actions.end())
-            return false;
-        return it->second == expected_action;
-    }
-
-    void Game::cancel_last_action(const std::string &player_name)
-    {
-        last_actions.erase(player_name);
-
-        std::string role;
-        try
-        {
-            auto player = get_player_by_name(player_name);
-            role = player->role();
-        }
-        catch (...)
-        {
-            role = "Unknown";
-        }
-
-        std::string action_name = "last action";
-        if (role == "Judge")
-            action_name = "bribe";
-        else if (role == "Governor")
-            action_name = "tax";
-
-        std::string log_line = "[Undo] Cancelled " + action_name + " of: " + player_name;
-        std::cout << log_line << std::endl;
-        this->log_action(log_line);
-    }
-
-    void Game::end_game()
-    {
-        game_over = true;
-        std::cout << "[Game] Game has ended.\n";
-        this->log_action("[Game] Game has ended.");
-    }
-
-    vector<string> Game::players() const
-    {
-        vector<string> active;
-        for (const auto &p : players_list)
-        {
-            if (p->is_active())
-            {
-                active.push_back(p->get_name());
-            }
-        }
-        return active;
-    }
-
-    string Game::winner() const
-    {
-        vector<string> alive = players();
-        if (alive.size() != 1)
-        {
-            throw GameNotOverException();
-        }
-
-        return alive.front();
-    }
-
-    void Game::next_turn()
-    {
-        assert_game_active();
-
-        std::string prev = turn();
-        // 🔍 בדוק אם נותר שחקן יחיד
-        std::vector<std::string> alive = players();
-        if (alive.size() == 1)
-        {
-            std::cout << "[Game] Winner is: " << alive.front() << std::endl;
-            log_action("[Game] Winner is: " + alive.front());
-            game_over = true;
+void Game::remove_player(const std::string &victim) {
+    assert_game_active();
+    for (auto &p : players_list) {
+        if (p->get_name() == victim) {
+            p->set_active(false);
+            std::cout << "[Eliminate] Player " << victim << " has been eliminated(unless undone by a general).\n";
+            this->log_action("[Eliminate] Player " + victim + " has been eliminated(unless undone by a general).\n");
             return;
         }
+    }
+    throw PlayerNotFoundException(victim);
+}
 
-        size_t n = players_list.size();
-        do
-        {
-            current_turn_index = (current_turn_index + 1) % n;
-        } while (!players_list[current_turn_index]->is_active());
+// ======================
+// Turn Logic
+// ======================
 
-        coup_pending_list.erase(
-            std::remove_if(
-                coup_pending_list.begin(),
-                coup_pending_list.end(),
-                [&](const auto &entry)
-                {
-                    return entry.first == turn(); // השחקן הנוכחי בתור
-                }),
-            coup_pending_list.end());
+std::string Game::turn() const {
+    if (players_list.empty())
+        throw InvalidActionException("No players in game.");
+    return players_list.at(current_turn_index)->get_name();
+}
 
-        arrest_blocked_players.erase(prev);
+void Game::next_turn() {
+    assert_game_active();
+    global_turn_counter++;
 
-        std::cout << "[Turn] " << prev << " ended. " << turn() << " begins.\n";
+    std::string prev = turn();
+    std::shared_ptr<Player> prev_player = get_player_by_name(prev);
+    prev_player->unsanction();
 
-        if (current_turn_index == players_list.size() - 1)
-        {
-            undo_tax = false;
-            undo_bribe = false;
-            peek_disable = false;
-            undo_tax = false;
-            undo_coup = false;
-            for (auto &p : players_list)
-            {
-                p->unsanction();
-            }
+    if (players().size() == 1) {
+        std::cout << "[Game] Winner is: " << players().front() << std::endl;
+        log_action("[Game] Winner is: " + players().front());
+        game_over = true;
+        return;
+    }
+
+    size_t n = players_list.size();
+    do {
+        current_turn_index = (current_turn_index + 1) % n;
+    } while (!players_list[current_turn_index]->is_active());
+
+    coup_pending_list.erase(
+        std::remove_if(
+            coup_pending_list.begin(), coup_pending_list.end(),
+            [&](const auto &entry) { return entry.first == turn(); }),
+        coup_pending_list.end());
+
+    arrest_blocked_players.erase(prev);
+
+    std::cout << "[Turn] " << prev << " ended. " << turn() << " begins.\n";
+
+    if (current_turn_index == players_list.size() - 1) {
+        undo_tax = undo_bribe = peek_disable = undo_coup = false;
+    }
+}
+
+std::string Game::winner() const {
+    auto alive = players();
+    if (alive.size() != 1)
+        throw GameNotOverException();
+    return alive.front();
+}
+
+// ======================
+// Action Handling
+// ======================
+
+void Game::perform_action(const std::string &action_name, const std::string &by) {
+    perform_action(action_name, by, "");
+}
+
+void Game::perform_action(const std::string &action_name, const std::string &by, const std::string &target_name) {
+    assert_game_active();
+    last_actions[by] = action_name;
+    action_turn[by] = global_turn_counter;
+
+    auto actor = get_player_by_name(by);
+    std::string log_line = "[" + action_name + "] performed by " + by + " (" + actor->role() + ")" +
+                           " (Coins: " + std::to_string(actor->coins()) + ")";
+
+    if (!target_name.empty()) {
+        try {
+            auto target = get_player_by_name(target_name);
+            log_line += " on " + target_name + " (" + target->role() + ")" +
+                        " (Coins: " + std::to_string(target->coins()) + ")";
+        } catch (...) {
+            log_line += " → " + target_name + " (Unknown)";
         }
     }
 
-    void Game::remove_player(const string &attacker, const string &victim)
-    {
-        assert_game_active();
+    std::cout << log_line << std::endl;
+    this->log_action(log_line);
+}
 
-        for (auto &p : players_list)
-        {
-            if (p->get_name() == victim)
-            {
-                
-                
-                p->set_active(false);
+void Game::cancel_last_action(const std::string &player_name) {
+    last_actions.erase(player_name);
 
-                std::cout << "[Eliminate] Player " << victim << " has been eliminated(unless undone by a general).\n";
-                this->log_action("[Eliminate] Player " + victim + " has been eliminated(unless undone by a general).\n");
-
-                return;
-            }
-        }
-        throw PlayerNotFoundException(victim);
+    std::string role;
+    try {
+        role = get_player_by_name(player_name)->role();
+    } catch (...) {
+        role = "Unknown";
     }
 
-    shared_ptr<Player> Game::get_player_by_name(const string &name)
-    {
-        assert_game_active();
+    std::string action_name = (role == "Judge") ? "bribe" : (role == "Governor") ? "tax" : "last action";
+    log_action("[Undo] Cancelled " + action_name + " of: " + player_name);
+}
 
-        for (auto &p : players_list)
-        {
-            if (p->get_name() == name)
-            {
-                return p;
-            }
-        }
-        throw PlayerNotFoundException(name);
+bool Game::can_undo_action(const std::string &target_name, const std::string &expected_action) const {
+    auto it = last_actions.find(target_name);
+    return (it != last_actions.end() && it->second == expected_action);
+}
+
+bool Game::can_still_undo(const std::string &player_name) const {
+    auto it = action_turn.find(player_name);
+    if (it == action_turn.end()) return false;
+    return (global_turn_counter - it->second) < static_cast<int>(players().size());
+}
+
+// ======================
+// Arrest/Coup Control
+// ======================
+
+void Game::block_arrest_for(const std::string &name) {
+    assert_game_active();
+    arrest_blocked_players.insert(name);
+    perform_action("block_arrest", turn(), name);
+}
+
+bool Game::is_arrest_blocked(const std::string &name) const {
+    return arrest_blocked_players.find(name) != arrest_blocked_players.end();
+}
+
+void Game::set_last_arrest_target(const std::string &target) {
+    assert_game_active();
+    last_arrested = target;
+}
+
+bool Game::arrested_same_target(const std::string &target) const {
+    return last_arrested == target;
+}
+
+// ======================
+// Coup System
+// ======================
+
+void Game::add_to_coup(const std::string &attacker, const std::string &target) {
+    coup_pending_list.emplace_back(attacker, target);
+}
+
+const std::vector<std::pair<std::string, std::string>> &Game::get_coup_pending_list() const {
+    return coup_pending_list;
+}
+
+void Game::cancel_coup(std::string target) {
+    assert_game_active();
+
+    auto it = std::remove_if(coup_pending_list.begin(), coup_pending_list.end(),
+                             [&](const auto &entry) { return entry.second == target; });
+
+    if (it != coup_pending_list.end()) {
+        coup_pending_list.erase(it, coup_pending_list.end());
+        get_player_by_name(target)->set_active(true);
+        log_action("[Coup] Coup on " + target + " has been cancelled.\n");
+    } else {
+        throw InvalidActionException("No pending coup on " + target);
     }
+}
 
-    void Game::block_arrest_for(const string &name)
-    {
-        assert_game_active();
-        arrest_blocked_players.insert(name);
-        perform_action("block_arrest", turn(), name);
-    }
+bool Game::is_coup_pending_on(const std::string &target) const {
+    assert_game_active();
+    return std::any_of(coup_pending_list.begin(), coup_pending_list.end(),
+                       [&](const auto &entry) { return entry.second == target; });
+}
 
-    bool Game::is_arrest_blocked(const string &name) const
-    {
-        return arrest_blocked_players.find(name) != arrest_blocked_players.end();
-    }
+// ======================
+// Reset & Debug
+// ======================
 
-    void Game::set_last_arrest_target(const string &attacker, const string &target)
-    {
-        assert_game_active();
-        last_arrested = target;
-        std::cout << "[Arrest] " << attacker << " arrested " << target << std::endl;
-        perform_action("arrest", attacker, target);
-    }
+void Game::reset() {
+    players_list.clear();
+    current_turn_index = 0;
+    game_over = false;
+    coup_pending_list.clear();
+    arrest_blocked_players.clear();
+    last_arrested.clear();
+    last_actions.clear();
+    std::cout << "[Game] Reset complete.\n";
+    log_action("[Game] Reset complete.\n");
+}
 
-    bool Game::arrested_same_target(const string &target) const
-    {
-        return last_arrested == target;
-    }
+void Game::print_state() const {
+    std::cout << "\n===== Game State =====\n";
+    std::cout << "Current turn: " << turn() << "\n";
+    std::cout << "\nActive players:\n";
+    for (const auto &p : players_list)
+        if (p->is_active())
+            std::cout << " - " << p->get_name() << " (" << p->role() << ") | Coins: " << p->coins() << "\n";
 
-
-
-    void Game::print_state() const
-    {
-        using std::cout;
-        using std::endl;
-
-        cout << "\n===== Game State =====" << endl;
-        cout << "Current turn: " << turn() << endl;
-
-        cout << "\nActive players:" << endl;
-        for (const auto &p : players_list)
-        {
-            if (p->is_active())
-            {
-                cout << " - " << p->get_name() << " (" << p->role() << ")"
-                     << " | Coins: " << p->coins() << endl;
-            }
-        }
-
-        cout << "\nEliminated players:" << endl;
-        for (const auto &p : players_list)
-        {
-            if (!p->is_active())
-            {
-                cout << " - " << p->get_name() << " (" << p->role() << ")"
-                     << " | Coins: " << p->coins() << endl;
-            }
-        }
-
-        cout << "======================\n"
-             << endl;
-    }
-    void Game:: cancel_coup(std:: string target)
-    {
-        assert_game_active();
-
-        auto it = std::remove_if(coup_pending_list.begin(), coup_pending_list.end(),
-                                 [&](const auto &entry) { return entry.second == target; });
-
-        if (it != coup_pending_list.end())
-        {
-            coup_pending_list.erase(it, coup_pending_list.end());
-            auto player_ptr = get_player_by_name(target);
-            player_ptr->set_active(true); // החזרת השחקן לחיים
-            std::cout << "[Coup] Coup on " << target << " has been cancelled.\n";
-            this->log_action("[Coup] Coup on " + target + " has been cancelled.\n");
-        }
-        else
-        {
-            throw InvalidActionException("No pending coup on " + target);
-        }
-    }
-    bool Game::is_coup_pending_on(const std::string& target) const{
-        assert_game_active();
-        return std::any_of(coup_pending_list.begin(), coup_pending_list.end(),
-                           [&](const auto &entry) { return entry.second == target; });
-    }
-    void Game::reset()
-    {
-        players_list.clear();
-        current_turn_index = 0;
-        game_over = false;
-        coup_pending_list.clear();
-        arrest_blocked_players.clear();
-        last_arrested = "";
-        last_actions.clear();
-        std::cout << "[Game] Reset complete.\n";
-        this->log_action("[Game] Reset complete.\n");
-    }
-
-    bool Game::is_game_over() const
-    {
-        return game_over;
-    }
+    std::cout << "\nEliminated players:\n";
+    for (const auto &p : players_list)
+        if (!p->is_active())
+            std::cout << " - " << p->get_name() << " (" << p->role() << ") | Coins: " << p->coins() << "\n";
+    std::cout << "======================\n" << std::endl;
+}
 
 } // namespace coup

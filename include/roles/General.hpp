@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #pragma once
 
 #include "Player.hpp"
@@ -15,7 +17,7 @@ namespace coup {
         void undo_coup(Player& target);
 
         // כשהגנרל נעצר (arrest), הוא מקבל בחזרה את המטבע שנלקח ממנו
-        void on_arrest();
+        void on_arrest() override;
     };
 
 }

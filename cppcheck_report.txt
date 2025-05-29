@@ -1,0 +1,230 @@
+include/Game.hpp:5:0: information: Include file: <string> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <string>
+^
+include/Game.hpp:6:0: information: Include file: <vector> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <vector>
+^
+include/Game.hpp:7:0: information: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <memory>
+^
+include/Game.hpp:8:0: information: Include file: <unordered_set> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <unordered_set>
+^
+include/Game.hpp:9:0: information: Include file: <unordered_map> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <unordered_map>
+^
+include/Game.hpp:10:0: information: Include file: <optional> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <optional>
+^
+include/Player.hpp:5:0: information: Include file: <string> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <string>
+^
+include/Player.hpp:6:0: information: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <memory>
+^
+include/Exceptions.hpp:5:0: information: Include file: <stdexcept> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdexcept>
+^
+include/Exceptions.hpp:6:0: information: Include file: <string> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <string>
+^
+src/Game.cpp:5:0: information: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+src/Game.cpp:6:0: information: Include file: <algorithm> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <algorithm>
+^
+include/Exceptions.hpp:85:9: style: Class 'BlockNotAvailableException' has a constructor with 1 argument that is not explicit. [noExplicitConstructor]
+        BlockNotAvailableException(const std::string& action)
+        ^
+include/Exceptions.hpp:99:9: style: Class 'InternalLogicException' has a constructor with 1 argument that is not explicit. [noExplicitConstructor]
+        InternalLogicException(const std::string& msg)
+        ^
+include/roles/Governor.hpp:20:14: style: The function 'undo_tax' overrides a function in a base class but is not marked with a 'override' specifier. [missingOverride]
+        void undo_tax(Player& target);
+             ^
+include/Player.hpp:46:22: note: Virtual function in base class
+        virtual void undo_tax(Player& target);
+                     ^
+include/roles/Governor.hpp:20:14: note: Function in derived class
+        void undo_tax(Player& target);
+             ^
+include/roles/Judge.hpp:17:14: style: The function 'undo_bribe' overrides a function in a base class but is not marked with a 'override' specifier. [missingOverride]
+        void undo_bribe(Player& target);
+             ^
+include/Player.hpp:47:22: note: Virtual function in base class
+        virtual void undo_bribe(Player& target);
+                     ^
+include/roles/Judge.hpp:17:14: note: Function in derived class
+        void undo_bribe(Player& target);
+             ^
+include/roles/Judge.hpp:20:14: style: The function 'on_sanction' overrides a function in a base class but is not marked with a 'override' specifier. [missingOverride]
+        void on_sanction();
+             ^
+include/Player.hpp:53:22: note: Virtual function in base class
+        virtual void on_sanction(); // called when this player is sanctioned
+                     ^
+include/roles/Judge.hpp:20:14: note: Function in derived class
+        void on_sanction();
+             ^
+include/roles/Baron.hpp:18:14: style: The function 'on_sanction' overrides a function in a base class but is not marked with a 'override' specifier. [missingOverride]
+        void on_sanction();
+             ^
+include/Player.hpp:53:22: note: Virtual function in base class
+        virtual void on_sanction(); // called when this player is sanctioned
+                     ^
+include/roles/Baron.hpp:18:14: note: Function in derived class
+        void on_sanction();
+             ^
+include/roles/General.hpp:20:14: style: The function 'on_arrest' overrides a function in a base class but is not marked with a 'override' specifier. [missingOverride]
+        void on_arrest();
+             ^
+include/Player.hpp:51:22: note: Virtual function in base class
+        virtual void on_arrest();   // called when this player is arrested
+                     ^
+include/roles/General.hpp:20:14: note: Function in derived class
+        void on_arrest();
+             ^
+src/Game.cpp:289:20: style: Variable 'p' can be declared as reference to const [constVariableReference]
+        for (auto &p : players_list)
+                   ^
+src/Game.cpp:44:13: style: Consider using std::any_of algorithm instead of a raw loop. [useStlAlgorithm]
+            {
+            ^
+src/Game.cpp:87:13: style: Consider using std::any_of algorithm instead of a raw loop. [useStlAlgorithm]
+            {
+            ^
+src/Game.cpp:272:13: style: Consider using std::find_if algorithm instead of a raw loop. [useStlAlgorithm]
+            {
+            ^
+src/Game.cpp:292:13: style: Consider using std::find_if algorithm instead of a raw loop. [useStlAlgorithm]
+            {
+            ^
+src/Player.cpp:6:0: information: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+include/Player.hpp:22:14: style: inconclusive: Technically the member function 'coup::Player::ensure_coup_required' can be const. [functionConst]
+        void ensure_coup_required();
+             ^
+src/Player.cpp:192:18: note: Technically the member function 'coup::Player::ensure_coup_required' can be const.
+    void Player::ensure_coup_required() {
+                 ^
+include/Player.hpp:22:14: note: Technically the member function 'coup::Player::ensure_coup_required' can be const.
+        void ensure_coup_required();
+             ^
+src/Player.cpp:173:29: style: Parameter 'target' can be declared as reference to const [constParameterReference]
+  void Player::coup(Player& target) {
+                            ^
+src/Player.cpp:81:9: style: Consider using std::any_of algorithm instead of a raw loop. [useStlAlgorithm]
+        for (const std::string& other : game->players()) {
+        ^
+include/gui/GUI.hpp:5:0: information: Include file: <SFML/Graphics.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <SFML/Graphics.hpp>
+^
+include/gui/GUI.hpp:6:0: information: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <memory>
+^
+include/gui/GUI.hpp:7:0: information: Include file: <string> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <string>
+^
+include/gui/GUI.hpp:8:0: information: Include file: <optional> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <optional>
+^
+src/gui/GUI.cpp:11:0: information: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+src/gui/GUI.cpp:12:0: information: Include file: <SFML/Graphics.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <SFML/Graphics.hpp>
+^
+include/gui/GUI.hpp:75:28: performance: inconclusive: Technically the member function 'coup::GUI::createButton' can be static (but you may consider moving to unnamed namespace). [functionStatic]
+        sf::RectangleShape createButton(float x, float y, float w, float h, const sf::Color &color);
+                           ^
+src/gui/GUI.cpp:1114:29: note: Technically the member function 'coup::GUI::createButton' can be static (but you may consider moving to unnamed namespace).
+    sf::RectangleShape GUI::createButton(float x, float y, float w, float h, const sf::Color &color)
+                            ^
+include/gui/GUI.hpp:75:28: note: Technically the member function 'coup::GUI::createButton' can be static (but you may consider moving to unnamed namespace).
+        sf::RectangleShape createButton(float x, float y, float w, float h, const sf::Color &color);
+                           ^
+include/gui/GUI.hpp:76:14: performance: inconclusive: Technically the member function 'coup::GUI::isMouseOver' can be static (but you may consider moving to unnamed namespace). [functionStatic]
+        bool isMouseOver(const sf::RectangleShape &rect, sf::Vector2i mousePos);
+             ^
+src/gui/GUI.cpp:1124:15: note: Technically the member function 'coup::GUI::isMouseOver' can be static (but you may consider moving to unnamed namespace).
+    bool GUI::isMouseOver(const sf::RectangleShape &rect, sf::Vector2i mousePos)
+              ^
+include/gui/GUI.hpp:76:14: note: Technically the member function 'coup::GUI::isMouseOver' can be static (but you may consider moving to unnamed namespace).
+        bool isMouseOver(const sf::RectangleShape &rect, sf::Vector2i mousePos);
+             ^
+src/gui/GUI.cpp:775:55: style: inconclusive: Function 'drawPlayerPanel' argument 1 names different: declaration 'player' definition 'p'. [funcArgNamesDifferent]
+    void GUI::drawPlayerPanel(std::shared_ptr<Player> p)
+                                                      ^
+include/gui/GUI.hpp:64:54: note: Function 'drawPlayerPanel' argument 1 names different: declaration 'player' definition 'p'.
+        void drawPlayerPanel(std::shared_ptr<Player> player);
+                                                     ^
+src/gui/GUI.cpp:775:55: note: Function 'drawPlayerPanel' argument 1 names different: declaration 'player' definition 'p'.
+    void GUI::drawPlayerPanel(std::shared_ptr<Player> p)
+                                                      ^
+src/gui/GUI.cpp:555:18: style: Local variable 'font' shadows outer variable [shadowVariable]
+        sf::Font font;
+                 ^
+include/gui/GUI.hpp:39:18: note: Shadowed declaration
+        sf::Font font;
+                 ^
+src/gui/GUI.cpp:555:18: note: Shadow variable
+        sf::Font font;
+                 ^
+src/gui/GUI.cpp:596:18: style: Local variable 'font' shadows outer variable [shadowVariable]
+        sf::Font font;
+                 ^
+include/gui/GUI.hpp:39:18: note: Shadowed declaration
+        sf::Font font;
+                 ^
+src/gui/GUI.cpp:596:18: note: Shadow variable
+        sf::Font font;
+                 ^
+src/gui/GUI.cpp:443:69: style: Consider using std::copy_if algorithm instead of a raw loop. [useStlAlgorithm]
+                                                current_target_names.push_back(name);
+                                                                    ^
+src/gui/GUI.cpp:530:65: style: Consider using std::copy_if algorithm instead of a raw loop. [useStlAlgorithm]
+                                            current_target_names.push_back(name);
+                                                                ^
+src/gui/GUI.cpp:677:37: style: Consider using std::copy_if algorithm instead of a raw loop. [useStlAlgorithm]
+                current_target_names.push_back(name);
+                                    ^
+src/gui/GUI.cpp:885:21: style: Consider using std::any_of algorithm instead of a raw loop. [useStlAlgorithm]
+                    {
+                    ^
+src/roles/Baron.cpp:6:0: information: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+src/roles/General.cpp:16:37: style: Parameter 'target' can be declared as reference to const [constParameterReference]
+    void General::undo_coup(Player& target) {
+                                    ^
+src/roles/Governor.cpp:6:0: information: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+src/roles/Judge.cpp:7:0: information: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+src/roles/Merchant.cpp:6:0: information: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+src/roles/Spy.cpp:6:0: information: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+src/roles/Spy.cpp:19:40: style: Parameter 'target' can be declared as reference to const [constParameterReference]
+    void Spy::peek_and_disable(Player& target) {
+                                       ^
+src/Game.cpp:182:0: style: The function 'end_game' is never used. [unusedFunction]
+    void Game::end_game()
+^
+src/Game.cpp:322:0: style: The function 'print_state' is never used. [unusedFunction]
+    void Game::print_state() const
+^
+src/Player.cpp:210:0: style: The function 'on_turn_start' is never used. [unusedFunction]
+    void Player::on_turn_start() {
+^
+src/gui/GUI.cpp:35:0: style: The function 'run' is never used. [unusedFunction]
+    void GUI::run()
+^
+nofile:0:0: information: Active checkers: 172/592 (use --checkers-report=<filename> to see details) [checkersReport]
+

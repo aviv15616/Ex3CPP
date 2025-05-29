@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #pragma once
 
 #include "Player.hpp"
@@ -12,10 +14,9 @@ namespace coup {
         std::string role() const override;
 
         // יכול לבטל פעולה של שוחד (bribe) ולגבות את העלות מהשחקן שביצע
-        void undo_bribe(Player& target);
+        void undo_bribe(Player& target) override;
 
-        // כאשר השופט מותקף ב-sanction, התוקף צריך לשלם עוד מטבע (יש לממש מהצד של התוקף)
-        void on_sanction();
+      
     };
 
 }

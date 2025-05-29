@@ -1,3 +1,5 @@
+// Anksilae@gmail.com
+
 #include "Baron.hpp"
 #include "Exceptions.hpp"
 #include "Game.hpp"

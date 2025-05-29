@@ -1,3 +1,5 @@
+# Anksilae@gmail.com
+
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic -g
 
@@ -37,12 +39,22 @@ $(TARGET): $(SRC_CORE) $(SRC_ROLES) $(SRC_GUI) $(MAIN)
 TEST = tests/all_tests.cpp
 TEST_TARGET = build/all_tests
 
+valgrind: $(TARGET)
+	valgrind --leak-check=full --track-origins=yes ./build/Main
+
+
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
 $(TEST_TARGET): $(SRC_CORE) $(SRC_ROLES) $(TEST)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
-
+# === בדיקת קוד לא בשימוש עם cppcheck ===
+check_unused:
+	cppcheck --enable=all --inconclusive --std=c++17 --force \
+	         -Iinclude -Iinclude/gui -Iinclude/roles \
+	         src src/gui src/roles include include/gui include/roles \
+	         2> cppcheck_report.txt
+	@echo "🔍 דו\"ח cppcheck נשמר בקובץ: cppcheck_report.txt"
 # ניקוי
 clean:
 	rm -rf build/*
