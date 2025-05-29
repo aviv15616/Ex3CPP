@@ -20,17 +20,21 @@ bool GUI::tryCreateAndAddPlayer(const std::string &name, const std::string &role
 }
 
 void GUI::handle_gui_exception(const std::exception &e) {
-    error_message = e.what();
+    std::string msg = e.what();
+    std::cerr << "[GUI Exception] " << msg << std::endl;
+    error_message = msg;
     info_message.clear();
-    std::cerr << "[GUI Exception] " << e.what() << std::endl;
-
-    pending_target_action = PendingTargetAction::None;
-
-    try {
-        render();
-    } catch (const std::exception &re) {
-        std::cerr << "[Render Exception] " << re.what() << std::endl;
+      if (msg.find("must perform a coup") != std::string::npos) {
+       
+        pending_target_action = PendingTargetAction::Coup;
+    } else {
+        
+        pending_target_action = PendingTargetAction::None;
     }
+
+   
+        render();
+    
 }
 
 sf::RectangleShape GUI::createButton(float x, float y, float w, float h, const sf::Color &color) {

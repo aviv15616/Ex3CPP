@@ -36,81 +36,77 @@ namespace coup
     void GUI::run()
     {
 
-
         while (window.isOpen())
         {
-          
-          
+
             handleEvents();
             render();
-           
         }
     }
 
-   void GUI::handleEvents()
-{
-    sf::Event event;
-
-    while (window.pollEvent(event))
+    void GUI::handleEvents()
     {
-        try
+        sf::Event event;
+
+        while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed)
+            try
             {
-                window.close();
-                return;
-            }
-
-            if (event.type == sf::Event::MouseButtonPressed)
-            {
-                error_message.clear();
-            }
-
-            if (state == GUIState::Setup)
-            {
-                handleSetupInput(event);
-            }
-            else if (state == GUIState::Playing && event.type == sf::Event::MouseButtonPressed)
-            {
-                sf::Vector2i mouse = sf::Mouse::getPosition(window);
-
-                if (handleGlobalButtons(mouse))
-                    return;
-
-                auto current = game.get_player_by_name(game.turn());
-
-                if (handleSpecialButtonClick(mouse, current))
-                    return;
-
-                // החלק החדש - שמירה האם התבצעה לחיצה תקפה
-                bool clicked_target = handleTargetActionClick(mouse, current);
-                if (clicked_target)
-                    return;
-
-                bool clicked_basic = handleBasicActionClick(mouse, current);
-                if (clicked_basic)
-                    return;
-
-                // ✅ איפוס אם המשתמש לחץ על מקום ריק (לא יעד ולא פעולה)
-                if (pending_target_action != PendingTargetAction::None)
+                if (event.type == sf::Event::Closed)
                 {
-                    std::cerr << "[INFO] Target action canceled due to click outside buttons.\n";
-                    pending_target_action = PendingTargetAction::None;
-                    info_message.clear();
+                    window.close();
+                    return;
+                }
+
+                if (event.type == sf::Event::MouseButtonPressed)
+                {
+                    error_message.clear(); // מנקה שגיאות קודמות בלחיצה
+                }
+
+                if (state == GUIState::Setup)
+                {
+                    handleSetupInput(event);
+                }
+                else if (state == GUIState::Playing && event.type == sf::Event::MouseButtonPressed)
+                {
+                    sf::Vector2i mouse = sf::Mouse::getPosition(window);
+
+                    // 🟢 לחצן "New Game" או סיום משחק
+                    if (handleGlobalButtons(mouse))
+                        return;
+
+                    auto current = game.get_player_by_name(game.turn());
+
+                    // 🟢 כפתורים מיוחדים (Spy, Judge וכו’)
+                    if (handleSpecialButtonClick(mouse, current))
+                        return;
+
+                    // 🟢 שלב ראשון – לחיצה על יעד
+                    bool clicked_target = handleTargetActionClick(mouse, current);
+
+                    // 🟢 שלב שני – לחיצה על פעולה רגילה
+                    bool clicked_basic = handleBasicActionClick(mouse, current);
+
+                    // 🟡 שלב שלישי – אם לא נלחץ יעד ולא פעולה, נניח שהוא לחץ על מקום ריק
+                    if (pending_target_action != PendingTargetAction::None &&
+                        !clicked_target && !clicked_basic)
+                    {
+                        std::cerr << "[INFO] Target action canceled due to click outside buttons.\n";
+                        pending_target_action = PendingTargetAction::None;
+                        info_message.clear();
+                    }
                 }
             }
-        }
-        catch (const std::exception &e)
-        {
-            handle_gui_exception(e);
-            pending_target_action = PendingTargetAction::None;
+            catch (const std::exception &e)
+            {
+                handle_gui_exception(e);
+                pending_target_action = PendingTargetAction::None;
+            }
         }
     }
-}
 
     void GUI::render()
     {
-            
 
         window.clear(sf::Color(30, 30, 30));
 
@@ -122,19 +118,44 @@ namespace coup
             }
             else if (state == GUIState::Playing)
             {
-                if (game.is_game_over())
+                if (game.is_game_over() && pending_target_action == PendingTargetAction::None)
                 {
-                    auto newGameBtn = createButton(250, 300, 300, 50, sf::Color(100, 200, 100));
-                    window.draw(newGameBtn);
-                    drawText("Start New Game", 270, 310, 20);
+                    int window_width = window.getSize().x;
+                    int window_height = window.getSize().y;
+                    int button_width = 300;
+                    int button_height = 50;
 
+                    // Center the button
+                    int button_x = (window_width - button_width) / 2;
+                    int button_y = (window_height - button_height) / 2;
+
+                    auto newGameBtn = createButton(button_x, button_y, button_width, button_height, sf::Color(100, 200, 100));
+                    window.draw(newGameBtn);
+                    window.draw(newGameBtn);
+                    // Calculate the position for the text to be centered inside the button
+                    sf::FloatRect button_bounds = newGameBtn.getGlobalBounds();
+                    float text_x = button_bounds.left + (button_bounds.width - 80) / 2; // Center the text horizontally
+                    float text_y = button_bounds.top + (button_bounds.height - 20) / 2; // Center the text vertically
+
+                    // Draw the "Start New Game" text in the center of the button
+                    drawText("Start New Game", text_x-35, text_y, 20);
+                    persistent_new_game_button = newGameBtn.getGlobalBounds();
                     try
                     {
-                        drawText("WINNER IS : " + game.winner() + " GAME OVER !", 180, 240, 22, sf::Color::Yellow);
+                        sf::Text winner_text("WINNER IS : " + game.winner() + " GAME OVER !", font, 22);
+                        sf::FloatRect winner_text_rect = winner_text.getLocalBounds();
+                        float winner_text_x = (window_width - winner_text_rect.width) / 2;
+                        float winner_text_y = button_y - 60; // Position it above the button (or adjust as needed)
+
+                        drawText("WINNER IS : " + game.winner() + " GAME OVER !", winner_text_x, winner_text_y, 22, sf::Color::Yellow);
                     }
                     catch (const std::exception &e)
                     {
-                        drawText("GAME OVER - Error getting winner", 180, 240, 22, sf::Color::Red);
+                        sf::Text winner_text("GAME OVER - Error getting winner", font, 22);
+                        sf::FloatRect winner_text_rect = winner_text.getLocalBounds();
+                        float winner_text_x = (window_width - winner_text_rect.width) / 2;
+                        float winner_text_y = button_y - 60; // Position it above the button (or adjust as needed)
+                        drawText("GAME OVER - Error getting winner", winner_text_x, winner_text_y, 22, sf::Color::Red);
                     }
 
                     if (!error_message.empty())
@@ -149,9 +170,8 @@ namespace coup
                         drawText(error_message, 40, 490, 18, sf::Color(255, 180, 180));
                     }
 
-    window.display();
-    
-                 
+                    window.display();
+
                     return;
                 }
 
@@ -240,7 +260,6 @@ namespace coup
                     text_y += row_height;
                 }
 
-
                 // 🟩 כפתור new game
                 sf::RectangleShape newGameBtn = createButton(
                     btn_x,
@@ -258,9 +277,6 @@ namespace coup
 
                 persistent_new_game_button = newGameBtn.getGlobalBounds();
             }
-
-     
-           
 
             // ציור הודעות שגיאה או מידע
             drawTurnInfo();

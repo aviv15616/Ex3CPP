@@ -26,6 +26,7 @@ namespace coup {
         Arrest,
         Sanction,
         Coup
+       
     };
 
     // ====== GUI Class ======

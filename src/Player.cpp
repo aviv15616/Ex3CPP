@@ -89,6 +89,9 @@ namespace coup
         game->next_turn();
     }
     void Player::skip_turn(){
+        ensure_coup_required();
+        game->perform_action("Skip Turn", name);
+
         game->next_turn();
         
     }
