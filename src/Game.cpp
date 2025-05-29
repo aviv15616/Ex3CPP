@@ -96,7 +96,7 @@ const std::unordered_map<std::string, std::string>& Game::get_last_actions() con
     return last_actions;
 }
 
-std::shared_ptr<Player> Game::get_player_by_name(const std::string &name) {
+std::shared_ptr<Player> Game::get_player_by_name(const std::string &name) const {
     assert_game_active();
     for (auto &p : players_list)
         if (p->get_name() == name)
@@ -153,14 +153,18 @@ void Game::next_turn() {
             [&](const auto &entry) { return entry.first == turn(); }),
         coup_pending_list.end());
 
-    arrest_blocked_players.erase(prev);
+    prev_player->enable_arrest();
 
     std::cout << "[Turn] " << prev << " ended. " << turn() << " begins.\n";
 
     if (current_turn_index == players_list.size() - 1) {
         undo_tax = undo_bribe = peek_disable = undo_coup = false;
     }
-}
+    
+        players_list[current_turn_index]->on_turn_start();
+    } 
+   
+
 
 std::string Game::winner() const {
     auto alive = players();
@@ -231,12 +235,12 @@ bool Game::can_still_undo(const std::string &player_name) const {
 
 void Game::block_arrest_for(const std::string &name) {
     assert_game_active();
-    arrest_blocked_players.insert(name);
+    get_player_by_name(name)->disable_arrest();
     perform_action("block_arrest", turn(), name);
 }
 
 bool Game::is_arrest_blocked(const std::string &name) const {
-    return arrest_blocked_players.find(name) != arrest_blocked_players.end();
+    return get_player_by_name(name)->is_arrest_disabled();
 }
 
 void Game::set_last_arrest_target(const std::string &target) {

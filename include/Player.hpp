@@ -17,9 +17,10 @@ namespace coup {
         bool active = true;
         bool under_arrest = false;
         bool under_sanction = false;
+        bool arrest_disabled =false;
 
-        // ===== Internal Utilities =====
-        void ensure_coup_required(); // Throws if player has ≥10 coins and hasn't performed a coup
+        
+        
 
     public:
         Player(Game& game_ref, const std::string& name);
@@ -31,13 +32,13 @@ namespace coup {
         void set_coins(int amount);                   // Sets the player's coin count
         bool is_active() const;                       // Returns whether the player is alive
         void set_active(bool status);                 // Sets the active (alive/dead) status
-        bool has_available_actions() const;           // Checks if player can legally act
-
+      
         // ===== Abstract Methods =====
         virtual std::string role() const = 0;         // Returns the role name (to be overridden)
 
         // ===== Basic Actions =====
         virtual void gather();                        // +1 coin
+        void skip_turn();
         virtual void tax();                           // +2 coins
         void bribe();                                 // Pay 4 coins to bribe
 
@@ -45,6 +46,11 @@ namespace coup {
         void arrest(Player& target);                  // Arrest another player and steal coins
         void sanction(Player& target);                // Apply sanction to another player
         void coup(Player& target);                    // Eliminate another player (coup)
+        bool is_sanctioned() const ; // Check if player is sanctioned
+        bool is_arrest_disabled() const ; // Check if arrest is disabled
+        void enable_arrest() ; // Enable arrest for this player
+        void disable_arrest(); // Disable arrest for this player
+        void ensure_coup_required(); // Throws if player has ≥10 coins and hasn't performed a coup
 
         // ===== Undoable Actions (Override in roles) =====
         virtual void undo_tax(Player& target);        // Undo a tax action (Governor only)

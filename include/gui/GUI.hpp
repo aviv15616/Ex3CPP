@@ -8,6 +8,7 @@
 #include <string>
 #include <optional>
 
+
 const int WINDOW_WIDTH = 1024;
 const int WINDOW_HEIGHT = 720;
 
@@ -40,10 +41,12 @@ namespace coup {
 
         // ====== SFML Window and Core ======
         sf::RenderWindow window;         // Main render window
+        sf::Clock render_clock; 
         sf::Font font;                   // Loaded font for text
         GUIState state = GUIState::Setup; // Current GUI state
         PendingTargetAction pending_target_action = PendingTargetAction::None; // Action waiting for target
         sf::FloatRect persistent_new_game_button; // Location of "New Game" button
+
 
         // ====== Flags ======
         bool debug_auto_start = false;   // Auto start for debug/demo
@@ -84,7 +87,6 @@ namespace coup {
         void handleEvents();                 // Handle mouse/keyboard input
         bool tryCreateAndAddPlayer(const std::string &name, const std::string &role); // Try to add a player
         void handle_gui_exception(const std::exception &e); // Display exception in error_message
-        void handle_gui_info(const std::string &msg);       // Set info_message with side effects (optional)
 
         // ====== Popups ======
         bool show_yes_no_popup(const std::string &question_text); // Not implemented in GUI.cpp yet
@@ -97,7 +99,13 @@ namespace coup {
         // ====== Utility Drawing ======
         void drawText(const std::string &str, float x, float y, unsigned size = 20, sf::Color color = sf::Color::White); // Text
         static sf::RectangleShape createButton(float x, float y, float w, float h, const sf::Color &color);              // Button
-        static bool isMouseOver(const sf::RectangleShape &rect, sf::Vector2i mousePos);                                  // Mouse-over test
+        static bool isMouseOver(const sf::RectangleShape &rect, sf::Vector2i mousePos);
+        void handleSetupInput(const sf::Event &event);
+        bool handleGlobalButtons(const sf::Vector2i &mouse);
+        bool handleSpecialButtonClick(const sf::Vector2i &mouse, std::shared_ptr<Player> current);
+        bool handleTargetActionClick(const sf::Vector2i &mouse, std::shared_ptr<Player> current);
+        bool handleBasicActionClick(const sf::Vector2i &mouse, std::shared_ptr<Player> current);
+        // Mouse-over test
     };
 
 } // namespace coup

@@ -42,7 +42,6 @@ namespace coup {
         std::shared_ptr<Player> add_player(const std::string &name, const std::string &role); // Add new player by name/role
         void add_player(const std::shared_ptr<Player> &p);                                   // Add existing player instance
         void remove_player(const std::string &victim);                                       // Remove player from game
-        std::shared_ptr<Player> get_player_by_name(const std::string &name);                 // Retrieve player by name
         std::vector<std::shared_ptr<Player>> get_all_players_raw() const;                    // Return all player pointers
 
         // ===== Logging and Undo =====
@@ -65,6 +64,7 @@ namespace coup {
         void perform_action(const std::string &action_name, const std::string &by); // Record action without target
         void perform_action(const std::string &action_name, const std::string &by, const std::string &target_name); // With target
         const std::unordered_map<std::string, std::string>& get_last_actions() const; // Returns map of last actions
+        std::shared_ptr<Player> get_player_by_name(const std::string &name) const;
         // ===== Game State Queries =====
         std::vector<std::string> players() const;                  // Return list of alive player names
         std::string winner() const;                                // Return winner's name if one remains

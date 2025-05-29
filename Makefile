@@ -19,7 +19,8 @@ SRC_ROLES = \
 	src/roles/Merchant.cpp
 
 # קבצי GUI
-SRC_GUI = src/gui/GUI.cpp
+SRC_GUI = $(wildcard src/gui/*.cpp)
+
 
 # קובץ main
 MAIN = Main.cpp

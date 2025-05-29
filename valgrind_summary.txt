@@ -1,0 +1,19 @@
+==191674== Conditional jump or move depends on uninitialised value(s)
+==191674== Conditional jump or move depends on uninitialised value(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Conditional jump or move depends on uninitialised value(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== Syscall param ioctl(generic) points to uninitialised byte(s)
+==191674== 11,404 (8,868 direct, 2,536 indirect) bytes in 3 blocks are definitely lost in loss record 3,812 of 3,818
+==191674== 12,208 (10,384 direct, 1,824 indirect) bytes in 4 blocks are definitely lost in loss record 3,813 of 3,818
+==191674== 65,536 bytes in 1 blocks are definitely lost in loss record 3,818 of 3,818
+==191674==    definitely lost: 84,788 bytes in 8 blocks
