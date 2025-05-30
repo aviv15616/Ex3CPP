@@ -1,260 +1,265 @@
-    // Anksilae@gmail.com
-    
-    #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-    #include "doctest.h"
-    #include "Player.hpp"
-    #include "Game.hpp"
-    #include "Exceptions.hpp"
-    #include <memory>
-    #include <string>
+// test_player.cpp
+// Anksilae@gmail.com
 
-    using namespace coup;
-    namespace coup {
-    class TestPlayer : public Player {
-    public:
-        TestPlayer(Game& game, const std::string& name, const std::string& role_name = "TestRole")
-            : Player(game, name), fake_role(role_name) {}
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest.h"
+#include "Game.hpp"
+#include "Player.hpp"
+#include "Spy.hpp"
+#include "Exceptions.hpp"
 
-        std::string role() const override { return fake_role; }
+using namespace coup;
 
-        void on_arrest() override { arrested_called = true; }
-        void on_sanction() override { sanctioned_called = true; }
-        void on_turn_start() override { turn_start_called = true; }
+TEST_CASE("Basic player actions") {
 
-        bool arrested_called = false;
-        bool sanctioned_called = false;
-        bool turn_start_called = false;
-
-        void set_fake_role(const std::string& r) { fake_role = r; }
-
-    private:
-        std::string fake_role;
-    };
-
-    class TestGame : public Game {
-    public:
-        void force_turn(const std::string& name) {
-            for (size_t i = 0; i < players().size() + 5; ++i) {
-                if (turn() == name) return;
-                next_turn();
-            }
-        }
-
-        void simulate_last_action(const std::string& player, const std::string& action) {
-            perform_action(action, player);
-        }
-
-        void simulate_arrest_block(const std::string& player) {
-            block_arrest_for(player);
-        }
-
-        void clear_last_action(const std::string& player) {
-            cancel_last_action(player);
-        }
-
-    void unblock_arrest_for(const std::string& name) {
-        arrest_blocked_players.erase(name);
+    SUBCASE("Initial state") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        CHECK(p->get_name() == "Alice");
+        CHECK(p->coins() == 0);
+        CHECK(p->is_active());
+        CHECK(p->role() == "Spy");
+        CHECK_FALSE(p->is_sanctioned());
+        CHECK_FALSE(p->is_arrest_disabled());
     }
 
-    };
+    SUBCASE("gather adds 1 coin") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        g.set_current_turn_index(0);
+        p->gather();
+        CHECK(p->coins() == 1);
     }
-    using namespace coup;
 
-    TEST_CASE("Full coverage for Player.cpp") {
-        TestGame g;
-        auto p1 = std::make_shared<TestPlayer>(g, "Alice");
-        auto p2 = std::make_shared<TestPlayer>(g, "Bob");
-
-        g.add_player(p1);
-        g.add_player(p2);
-
-        SUBCASE("Basics: name, coins, set_active") {
-            CHECK(p1->get_name() == "Alice");
-            CHECK(p1->coins() == 0);
-            p1->set_coins(5);
-            CHECK(p1->coins() == 5);
-            p1->set_active(false);
-            CHECK_FALSE(p1->is_active());
-        }
-
-        SUBCASE("set_coins negative throws") {
-            CHECK_THROWS_AS(p1->set_coins(-1), InvalidActionException);
-        }
-
-        SUBCASE("gather success and fail cases") {
-            g.force_turn("Alice");
-            p1->set_coins(0);
-            p1->gather();
-            CHECK(p1->coins() == 1);
-
-            g.force_turn("Alice");
-            p1->set_coins(10);
-            CHECK_THROWS_AS(p1->gather(), InvalidActionException);
-
-            g.force_turn("Bob");
-            CHECK_THROWS_AS(p1->gather(), NotYourTurnException);
-        }
-
-        
-        SUBCASE("arrest edge cases") {
-            g.force_turn("Alice");
-            p1->set_coins(5);
-            p2->set_coins(1);
-
-            CHECK_THROWS_AS(p1->arrest(*p1), CannotTargetYourselfException);
-            p2->set_active(false);
-            CHECK_THROWS_AS(p1->arrest(*p2), PlayerAlreadyDeadException);
-            p2->set_active(true);
-            p2->set_coins(0);
-            CHECK_THROWS_AS(p1->arrest(*p2), InvalidActionException);
-
-            g.simulate_arrest_block("Alice");
-            p2->set_coins(2);
-            CHECK_THROWS_AS(p1->arrest(*p2), InvalidActionException);
-
-            g.unblock_arrest_for("Alice");
-            g.force_turn("Alice");
-            g.clear_last_action("Alice");
-            p1->set_coins(5);
-            p2->set_coins(2);
-            p1->arrest(*p2);
-            CHECK(p1->coins() == 6);
-            CHECK(p2->coins() == 1);
-            CHECK(p2->arrested_called);
-        }
-
-        SUBCASE("sanction behavior") {
-            g.force_turn("Alice");
-            p1->set_coins(2);
-            CHECK_THROWS_AS(p1->sanction(*p2), NotEnoughCoinsException);
-
-            g.force_turn("Alice");
-            p1->set_coins(3);
-            CHECK_NOTHROW(p1->sanction(*p2));
-            CHECK(p1->coins() == 0);
-            CHECK(p2->sanctioned_called);
-        }
-
-        SUBCASE("coup behavior") {
-            g.force_turn("Alice");
-            p1->set_coins(6);
-            CHECK_THROWS_AS(p1->coup(*p2), NotEnoughCoinsException);
-
-            g.force_turn("Alice");
-            p1->set_coins(7);
-            CHECK_NOTHROW(p1->coup(*p2));
-            CHECK_FALSE(p2->is_active());
-            CHECK(p1->coins() == 0);
-        }
-
-        SUBCASE("ensure_coup_required logic") {
-            p1->set_coins(10);
-            CHECK_THROWS_AS(p1->gather(), InvalidActionException);
-        }
-
-
-        SUBCASE("on_turn_start is called") {
-            g.force_turn("Bob");    // ודא ש-Alice לא בתורה
-            g.force_turn("Alice");  // מעבר תור => on_turn_start תופעל
-            CHECK(p1->turn_start_called);  // עכשיו זה יעבור
-        }
-        SUBCASE("tax fails if not your turn") {
-        g.force_turn("Bob"); // תוודא שזה לא Alice
-        CHECK_THROWS_AS(p1->tax(), NotYourTurnException);
+    SUBCASE("gather throws if not your turn") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        g.next_turn();
+        CHECK_THROWS_AS(p->gather(), NotYourTurnException);
     }
-    SUBCASE("arrest fails if repeated on same player") {
-        g.force_turn("Alice");
-        p1->set_coins(5);
+
+    SUBCASE("tax adds 2 coins") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        p->tax();
+        CHECK(p->coins() == 2);
+    }
+
+    SUBCASE("tax/gather throws if under sanction") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+
+        if (g.turn() != "Alice") {
+            p2->skip_turn();
+        }
+
+        p->set_coins(3);
+        p->on_sanction();
+
+        CHECK_THROWS_AS(p->tax(), InvalidActionException);
+        CHECK_THROWS_AS(p->gather(), InvalidActionException);
+
+        g.next_turn();
+        CHECK(g.turn() == "Bob");
+    }
+
+    SUBCASE("bribe removes 4 coins") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        p->set_coins(5);
+        p->bribe();
+        CHECK(p->coins() == 1);
+    }
+
+    SUBCASE("bribe throws if not enough coins") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        CHECK_THROWS_AS(p->bribe(), NotEnoughCoinsException);
+    }
+
+    SUBCASE("skip_turn updates turn index") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        size_t idx = g.get_current_turn_index();
+        p->skip_turn();
+        CHECK(g.get_current_turn_index() != idx);
+    }
+
+    SUBCASE("coup removes target and costs 7 coins") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        p->set_coins(7);
+        p->coup(*p2);
+        CHECK_FALSE(p2->is_active());
+        CHECK(p->coins() == 0);
+    }
+
+    SUBCASE("coup throws if not enough coins") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        p->set_coins(6);
+        CHECK_THROWS_AS(p->coup(*p2), NotEnoughCoinsException);
+    }
+
+    SUBCASE("sanction deducts coins and applies sanction") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        p->set_coins(5);
+        p->sanction(*p2);
+        CHECK(p->coins() <= 2);
+        CHECK(p2->is_sanctioned());
+    }
+
+    SUBCASE("sanction throws if not enough coins") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        p->set_coins(2);
+        CHECK_THROWS_AS(p->sanction(*p2), NotEnoughCoinsException);
+    }
+
+    SUBCASE("arrest steals coin") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        p2->set_coins(3);
+        p->arrest(*p2);
+        CHECK(p->coins() == 1);
+        CHECK(p2->coins() == 2);
+    }
+
+    SUBCASE("arrest throws on same target again") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        g.set_current_turn_index(0);
         p2->set_coins(2);
-        g.clear_last_action("Alice");
-        g.unblock_arrest_for("Alice");
-
-        p1->arrest(*p2);  // arrest ראשון – תקין
-        g.force_turn("Alice");
-        p2->set_coins(2); // מחזיר לו כסף כדי לוודא שעדיין תקף
-        CHECK_THROWS_AS(p1->arrest(*p2), InvalidActionException);  // אמור להיכשל
-    }
-    SUBCASE("sanction fails if not your turn") {
-        g.force_turn("Bob");
-        p1->set_coins(5);
-        CHECK_THROWS_AS(p1->sanction(*p2), NotYourTurnException);
-    }
-    SUBCASE("arrest throws when not your turn") {
-        g.force_turn("Bob");  // לא תור של Alice
-        p1->set_coins(5);
-        p2->set_coins(2);
-        CHECK_THROWS_AS(p1->arrest(*p2), NotYourTurnException);
+        p->arrest(*p2);
+        g.set_current_turn_index(0);
+        p->set_coins(2);
+        CHECK_THROWS_AS(p->arrest(*p2), InvalidActionException);
     }
 
-    SUBCASE("coup throws when not your turn") {
-        g.force_turn("Bob");  // לא תור של Alice
-        p1->set_coins(7);
-        p2->set_active(true);
-        CHECK_THROWS_AS(p1->coup(*p2), NotYourTurnException);
+    SUBCASE("arrest throws on self-target") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        p->set_coins(2);
+        CHECK_THROWS_AS(p->arrest(*p), CannotTargetYourselfException);
     }
-    SUBCASE("All coin modifications never go negative") {
-        CHECK_THROWS_AS(p1->set_coins(-100), InvalidActionException);
-        p1->set_coins(2);
-        CHECK_THROWS_AS(p1->set_coins(p1->coins() - 5), InvalidActionException);
+
+    SUBCASE("arrest throws if target is already dead") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        p2->set_active(false);
+        CHECK_THROWS_AS(p->arrest(*p2), PlayerAlreadyDeadException);
     }
-    SUBCASE("base class tax and bribe get called") {
-            class PlainPlayer : public Player {
-            public:
-                PlainPlayer(Game& game, const std::string& name) : Player(game, name) {}
-                std::string role() const override { return "Plain"; }
-            };
 
-            auto pp = std::make_shared<PlainPlayer>(g, "Plain");
-            g.add_player(pp);
-
-            g.force_turn("Plain");
-            pp->set_coins(5);
-            CHECK_NOTHROW(pp->tax());
-            CHECK(pp->coins() == 7);
-
-            g.force_turn("Plain");
-            CHECK_NOTHROW(pp->bribe());
-            CHECK(pp->coins() == 3);
-        }
-
-        SUBCASE("undo_tax and undo_bribe do nothing by default") {
-            class Dummy : public Player {
-            public:
-                Dummy(Game& game, const std::string& name) : Player(game, name) {}
-                std::string role() const override { return "Dummy"; }
-            };
-
-            auto d1 = std::make_shared<Dummy>(g, "D1");
-            auto d2 = std::make_shared<Dummy>(g, "D2");
-            g.add_player(d1);
-            g.add_player(d2);
-
-            CHECK_NOTHROW(d1->undo_tax(*d2));
-            CHECK_NOTHROW(d1->undo_bribe(*d2));
-        }
-
-        SUBCASE("default on_arrest and on_sanction get called") {
-            class PlainPlayer : public Player {
-            public:
-                PlainPlayer(Game& game, const std::string& name) : Player(game, name) {}
-                std::string role() const override { return "Plain"; }
-            };
-
-            auto pp1 = std::make_shared<PlainPlayer>(g, "PP1");
-            auto pp2 = std::make_shared<PlainPlayer>(g, "PP2");
-            g.add_player(pp1);
-            g.add_player(pp2);
-
-            g.force_turn("PP1");
-            pp1->set_coins(5);
-            pp2->set_coins(2);
-            CHECK_NOTHROW(pp1->arrest(*pp2));
-
-            g.force_turn("PP1");
-            pp1->set_coins(3);
-            pp2->set_active(true);
-            CHECK_NOTHROW(pp1->sanction(*pp2));
-        }
-
-
+    SUBCASE("arrest throws if target has no coins") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        p2->set_coins(0);
+        CHECK_THROWS_AS(p->arrest(*p2), InvalidActionException);
     }
+
+    SUBCASE("enable/disable arrest works") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        p->disable_arrest();
+        CHECK(p->is_arrest_disabled());
+        p->enable_arrest();
+        CHECK_FALSE(p->is_arrest_disabled());
+    }
+
+    SUBCASE("ensure_coup_required throws when coins >= 10") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        p->set_coins(10);
+        CHECK_THROWS_AS(p->ensure_coup_required(), MustCoupWith10CoinsException);
+    }
+
+    SUBCASE("set_coins throws on negative value") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        CHECK_THROWS_AS(p->set_coins(-1), InvalidActionException);
+    }
+
+    SUBCASE("unsanction clears sanction") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        p->on_sanction();
+        p->unsanction();
+        CHECK_FALSE(p->is_sanctioned());
+    }
+
+    SUBCASE("primary actions throw when not your turn") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+        g.set_current_turn_index(1);
+        p->set_coins(10);
+        p2->set_coins(3);
+        CHECK_THROWS_AS(p->tax(), NotYourTurnException);
+        CHECK_THROWS_AS(p->bribe(), NotYourTurnException);
+        CHECK_THROWS_AS(p->gather(), NotYourTurnException);
+        CHECK_THROWS_AS(p->coup(*p2), NotYourTurnException);
+        CHECK_THROWS_AS(p->sanction(*p2), NotYourTurnException);
+        CHECK_THROWS_AS(p->arrest(*p2), NotYourTurnException);
+    }
+
+    SUBCASE("arrest throws when blocked or on same target twice") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+
+        g.set_current_turn_index(0);
+        p2->set_coins(3);
+        g.block_arrest_for("Alice");
+        CHECK_THROWS_AS(p->arrest(*p2), InvalidActionException);
+
+        g.next_turn(); // Bob
+        g.next_turn(); // Alice
+        p->arrest(*p2);
+
+        g.set_current_turn_index(0);
+        p->set_coins(3);
+        CHECK_THROWS_AS(p->arrest(*p2), InvalidActionException);
+    }
+
+    SUBCASE("sanction on Judge costs 5 if not enough coins") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto judge = g.add_player("Charlie", "Judge");
+
+        p->set_coins(5);
+        g.set_current_turn_index(0);
+        p->sanction(*judge);
+        CHECK(p->coins() == 1);
+
+        g.set_current_turn_index(0);
+        p->set_coins(3);
+        CHECK_THROWS_AS(p->sanction(*judge), NotEnoughCoinsException);
+    }
+
+    SUBCASE("ensure_coup_required triggers correctly in all actions") {
+        Game g;
+        auto p = g.add_player("Alice", "Spy");
+        auto p2 = g.add_player("Bob", "Spy");
+
+        p->set_coins(10);
+        g.set_current_turn_index(0);
+
+        CHECK_THROWS_AS(p->tax(), MustCoupWith10CoinsException);
+        CHECK_THROWS_AS(p->bribe(), MustCoupWith10CoinsException);
+        CHECK_THROWS_AS(p->gather(), MustCoupWith10CoinsException);
+        CHECK_THROWS_AS(p->sanction(*p2), MustCoupWith10CoinsException);
+        CHECK_THROWS_AS(p->arrest(*p2), MustCoupWith10CoinsException);
+    }
+}

@@ -13,7 +13,14 @@
 
 namespace coup
 {
-
+    /**
+     * @brief Handles user input during the setup phase.
+     *
+     * Responds to text input for player name and mouse clicks for role selection,
+     * adding players, and starting the game.
+     *
+     * @param event The SFML event to process.
+     */
     void GUI::handleSetupInput(const sf::Event &event)
     {
         if (event.type == sf::Event::TextEntered && event.text.unicode < 128)
@@ -64,6 +71,15 @@ namespace coup
         }
     }
 
+    /**
+     * @brief Handles clicks on global GUI buttons such as "New Game".
+     *
+     * If the new game button is clicked, the game is reset and returns to setup state.
+     *
+     * @param mouse The mouse click position.
+     * @return true if a global button was clicked and handled.
+     * @return false otherwise.
+     */
     bool GUI::handleGlobalButtons(const sf::Vector2i &mouse)
     {
         if (persistent_new_game_button.contains(static_cast<float>(mouse.x), static_cast<float>(mouse.y)))
@@ -100,6 +116,16 @@ namespace coup
 
         return false;
     }
+    /**
+     * @brief Handles clicks on special out-of-turn role buttons (e.g., Spy Peek, Undo Tax).
+     *
+     * Validates role and triggers appropriate role-specific actions. Shows popups when required.
+     *
+     * @param mouse Mouse click position.
+     * @param current The current player.
+     * @return true if a special button was clicked and handled.
+     * @return false otherwise.
+     */
 
     bool GUI::handleSpecialButtonClick(const sf::Vector2i &mouse, std::shared_ptr<Player> current)
     {
@@ -112,13 +138,13 @@ namespace coup
 
                     auto target = game.get_player_by_name(target_name);
                     int original_coins = current->coins();
-                   
+
                     if (role == "Governor")
                     {
-                         if (target_name == current->get_name())
-                    {
-                        target->ensure_coup_required();
-                    }
+                        if (target_name == current->get_name())
+                        {
+                            target->ensure_coup_required();
+                        }
                         auto *gov_real = dynamic_cast<Governor *>(target.get());
                         if (!gov_real)
                             throw std::runtime_error("Player is not a Governor");
@@ -150,10 +176,10 @@ namespace coup
 
                     else if (role == "Judge")
                     {
-                         if (target_name == current->get_name())
-                    {
-                        target->ensure_coup_required();
-                    }
+                        if (target_name == current->get_name())
+                        {
+                            target->ensure_coup_required();
+                        }
                         auto *judge_real = dynamic_cast<Judge *>(target.get());
                         if (!judge_real)
                             throw std::runtime_error("Player is not a Judge");
@@ -165,10 +191,10 @@ namespace coup
 
                     else if (role == "General")
                     {
-                         if (target_name == current->get_name())
-                    {
-                        target->ensure_coup_required();
-                    }
+                        if (target_name == current->get_name())
+                        {
+                            target->ensure_coup_required();
+                        }
                         auto *general_real = dynamic_cast<General *>(target.get());
                         if (!general_real)
                             throw std::runtime_error("Player is not a General");
@@ -196,10 +222,10 @@ namespace coup
 
                     else if (role == "Spy")
                     {
-                         if (target_name == current->get_name())
-                    {
-                        target->ensure_coup_required();
-                    }
+                        if (target_name == current->get_name())
+                        {
+                            target->ensure_coup_required();
+                        }
                         auto *spy_real = dynamic_cast<Spy *>(target.get());
                         if (!spy_real)
                             throw std::runtime_error("Player is not a Spy");
@@ -234,6 +260,17 @@ namespace coup
         }
         return false;
     }
+
+    /**
+     * @brief Handles clicks on target players during a pending target action (Arrest, Sanction, Coup).
+     *
+     * If the user selects a valid target, the action is performed.
+     *
+     * @param mouse Mouse click position.
+     * @param current The current player initiating the target action.
+     * @return true if a valid target was clicked and the action was executed.
+     * @return false otherwise.
+     */
 
     bool GUI::handleTargetActionClick(const sf::Vector2i &mouse, std::shared_ptr<Player> current)
     {
@@ -295,7 +332,8 @@ namespace coup
                         info_message = (pending_target_action == PendingTargetAction::Arrest)
                                            ? "Choose a player to arrest:"
                                        : (pending_target_action == PendingTargetAction::Sanction)
-                                           ? "Choose a player to sanction:": "Choose a player to coup:";
+                                           ? "Choose a player to sanction:"
+                                           : "Choose a player to coup:";
                     }
 
                     // ❌ שים לב, רק אם לא הייתה חריגה של Coup תחזור ותחזיר false
@@ -305,6 +343,17 @@ namespace coup
         }
         return false;
     }
+    /**
+     * @brief Handles clicks on basic action buttons like Gather, Tax, Bribe, Invest, or Skip Turn.
+     *
+     * Executes the corresponding action for the current player.
+     *
+     * @param mouse Mouse click position.
+     * @param current The current player taking action.
+     * @return true if an action button was clicked and handled.
+     * @return false otherwise.
+     */
+
     bool GUI::handleBasicActionClick(const sf::Vector2i &mouse, std::shared_ptr<Player> current)
     {
         for (const auto &pair : action_buttons_bounds)

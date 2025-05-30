@@ -15,9 +15,13 @@
 namespace coup
 {
 
-    GUI::GUI(Game &game, bool auto_start) : game(game), window(sf::VideoMode(1024, 720), "Coup Game")
+    /**
+     * @brief Constructs the GUI object, initializes the game window, font, and input box.
+     * 
+     * @param game Reference to the game object managed by this GUI.
+     */
+    GUI::GUI(Game &game) : game(game), window(sf::VideoMode(1024, 720), "Coup Game")
     {
-        debug_auto_start = auto_start;
         state = GUIState::Setup;
 
         if (!font.loadFromFile("assets/OpenSans.ttf"))
@@ -33,17 +37,21 @@ namespace coup
         sf::sleep(sf::milliseconds(100));
     }
 
+    /**
+     * @brief Runs the main GUI loop, handling events and rendering the screen repeatedly while the window is open.
+     */
     void GUI::run()
     {
-
         while (window.isOpen())
         {
-
             handleEvents();
             render();
         }
     }
 
+    /**
+     * @brief Handles input and window events such as closing the window, clicking buttons, or triggering actions.
+     */
     void GUI::handleEvents()
     {
         sf::Event event;
@@ -105,9 +113,12 @@ namespace coup
         }
     }
 
+    /**
+     * @brief Renders all elements of the GUI including setup screen, gameplay UI, player status, 
+     * error/info messages, and new game prompts.
+     */
     void GUI::render()
     {
-
         window.clear(sf::Color(30, 30, 30));
 
         try
@@ -132,20 +143,19 @@ namespace coup
                     auto newGameBtn = createButton(button_x, button_y, button_width, button_height, sf::Color(100, 200, 100));
                     window.draw(newGameBtn);
                     window.draw(newGameBtn);
-                    // Calculate the position for the text to be centered inside the button
                     sf::FloatRect button_bounds = newGameBtn.getGlobalBounds();
-                    float text_x = button_bounds.left + (button_bounds.width - 80) / 2; // Center the text horizontally
-                    float text_y = button_bounds.top + (button_bounds.height - 20) / 2; // Center the text vertically
+                    float text_x = button_bounds.left + (button_bounds.width - 80) / 2;
+                    float text_y = button_bounds.top + (button_bounds.height - 20) / 2;
 
-                    // Draw the "Start New Game" text in the center of the button
                     drawText("Start New Game", text_x-35, text_y, 20);
                     persistent_new_game_button = newGameBtn.getGlobalBounds();
+
                     try
                     {
                         sf::Text winner_text("WINNER IS : " + game.winner() + " GAME OVER !", font, 22);
                         sf::FloatRect winner_text_rect = winner_text.getLocalBounds();
                         float winner_text_x = (window_width - winner_text_rect.width) / 2;
-                        float winner_text_y = button_y - 60; // Position it above the button (or adjust as needed)
+                        float winner_text_y = button_y - 60;
 
                         drawText("WINNER IS : " + game.winner() + " GAME OVER !", winner_text_x, winner_text_y, 22, sf::Color::Yellow);
                     }
@@ -154,7 +164,7 @@ namespace coup
                         sf::Text winner_text("GAME OVER - Error getting winner", font, 22);
                         sf::FloatRect winner_text_rect = winner_text.getLocalBounds();
                         float winner_text_x = (window_width - winner_text_rect.width) / 2;
-                        float winner_text_y = button_y - 60; // Position it above the button (or adjust as needed)
+                        float winner_text_y = button_y - 60;
                         drawText("GAME OVER - Error getting winner", winner_text_x, winner_text_y, 22, sf::Color::Red);
                     }
 
@@ -171,7 +181,6 @@ namespace coup
                     }
 
                     window.display();
-
                     return;
                 }
 
@@ -183,7 +192,6 @@ namespace coup
                 drawSpecialButtonsPanel();
                 drawTurnInfo();
 
-                // ✅ צייר כפתור new game קבוע
                 int button_width = 140;
                 int button_height = 40;
                 int margin = 30;
@@ -191,14 +199,12 @@ namespace coup
                 int btn_x = window.getSize().x - button_width - margin;
                 int btn_y = window.getSize().y - button_height - margin;
 
-                // 🧮 מידע על שחקנים חיים
                 auto alive_players = game.players();
                 int row_height = 26;
                 int box_width = 260;
                 int padding = 10;
                 int list_height = static_cast<int>(alive_players.size()) * row_height + 2 * padding;
 
-                // ✅ מיקום הטבלה - קצת מעל new game, מיושר לימין
                 int box_x = btn_x - 110;
                 int box_y = btn_y - list_height - 15;
                 drawText("Active Players:", box_x, box_y - 30, 18, sf::Color(200, 200, 255));
@@ -207,35 +213,32 @@ namespace coup
                 float legend_y = box_y - 70;
                 float rect_size = 10;
                 float spacing = 100;
-                // Red - disabled arrest
+
                 sf::RectangleShape redBox(sf::Vector2f(rect_size, rect_size));
                 redBox.setPosition(legend_x + spacing - 15, legend_y -7);
                 redBox.setFillColor(sf::Color::Red);
                 window.draw(redBox);
                 drawText("= Disabled Arrest", legend_x + spacing, legend_y - 10, 14, sf::Color::White);
 
-                // Blue - sanctioned
                 sf::RectangleShape blueBox(sf::Vector2f(rect_size, rect_size));
                 blueBox.setPosition(legend_x + spacing - 15, legend_y + 8);
                 blueBox.setFillColor(sf::Color::Blue);
                 window.draw(blueBox);
                 drawText("= Sanctioned", legend_x + spacing, legend_y + 5, 14, sf::Color::White);
 
-                // Yellow - both
                 sf::RectangleShape yellowBox(sf::Vector2f(rect_size, rect_size));
                 yellowBox.setPosition(legend_x + spacing - 15, legend_y +23);
                 yellowBox.setFillColor(sf::Color::Yellow);
                 window.draw(yellowBox);
                 drawText("= Both", legend_x + spacing, legend_y + 20, 14, sf::Color::White);
-                // 📦 רקע הטבלה
+
                 sf::RectangleShape bg(sf::Vector2f(box_width, list_height));
                 bg.setPosition(box_x, box_y);
-                bg.setFillColor(sf::Color(40, 40, 80, 220)); // כחול כהה חצי שקוף
+                bg.setFillColor(sf::Color(40, 40, 80, 220));
                 bg.setOutlineColor(sf::Color::White);
                 bg.setOutlineThickness(2);
                 window.draw(bg);
 
-                // 🖊️ כיתוב לכל שחקן
                 int text_x = box_x + 10;
                 int text_y = box_y + padding;
                 for (const std::string &name : alive_players)
@@ -244,23 +247,16 @@ namespace coup
                     std::string label = name + " (" + p->role() + ")";
                     sf::Color color = sf::Color::White;
                     if (p->is_arrest_disabled() && p->is_sanctioned())
-                    {
-                        color = sf::Color::Yellow; // צהוב בהיר
-                    }
+                        color = sf::Color::Yellow;
                     else if (p->is_arrest_disabled())
-                    {
-                        color = sf::Color::Red; // אדום בהיר
-                    }
+                        color = sf::Color::Red;
                     else if (p->is_sanctioned())
-                    {
+                        color = sf::Color::Blue;
 
-                        color = sf::Color::Blue; // כחול בהיר
-                    }
                     drawText(label, text_x, text_y, 16, color);
                     text_y += row_height;
                 }
 
-                // 🟩 כפתור new game
                 sf::RectangleShape newGameBtn = createButton(
                     btn_x,
                     btn_y,
@@ -269,7 +265,6 @@ namespace coup
                     sf::Color(100, 200, 100));
                 window.draw(newGameBtn);
 
-                // טקסט ממורכז בכפתור
                 sf::FloatRect newGameBounds = newGameBtn.getGlobalBounds();
                 float center_x = newGameBounds.left + (newGameBounds.width - 80) / 2;
                 float center_y = newGameBounds.top + 10;
@@ -278,7 +273,6 @@ namespace coup
                 persistent_new_game_button = newGameBtn.getGlobalBounds();
             }
 
-            // ציור הודעות שגיאה או מידע
             drawTurnInfo();
         }
         catch (const std::exception &e)
@@ -297,5 +291,4 @@ namespace coup
         window.display();
     }
 
-}
-// namespace coup
+} // namespace coup

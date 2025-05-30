@@ -5,7 +5,7 @@
 
 int main() {
     coup::Game game;
-    coup::GUI gui(game,true); 
+    coup::GUI gui(game); 
     gui.run();
     return 0;
 }

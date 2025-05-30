@@ -64,5 +64,6 @@
         "format": "cpp",
         "span": "cpp",
         "variant": "cpp"
-    }
+    },
+    "C_Cpp.errorSquiggles": "enabled"
 }

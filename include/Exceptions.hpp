@@ -80,23 +80,4 @@ namespace coup {
             : CoupException(role + " cannot perform " + action + ".") {}
     };
 
-    class BlockNotAvailableException : public CoupException {
-    public:
-        explicit BlockNotAvailableException(const std::string& action)
-            : CoupException("No player is allowed to block action: " + action) {}
-    };
-
-    // 🔹 חריגות חוזרות (arrest על אותו שחקן, sanction חוזר)
-    class ActionAlreadyUsedOnPlayerException : public CoupException {
-    public:
-        ActionAlreadyUsedOnPlayerException(const std::string& action, const std::string& target)
-            : CoupException("Cannot use action '" + action + "' again on player '" + target + "' consecutively.") {}
-    };
-
-    // 🔹 חריגות פנימיות (שימוש בעתיד אפשרי)
-    class InternalLogicException : public CoupException {
-    public:
-        explicit InternalLogicException(const std::string& msg)
-            : CoupException("Internal error: " + msg) {}
-    };
 }

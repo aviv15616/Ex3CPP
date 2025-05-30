@@ -2,60 +2,67 @@
 
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic -g
-
-# נתיבי include
 INCLUDES = -Iinclude -Iinclude/gui -Iinclude/roles
 
-# קבצי ליבה
+# קבצי מקור
 SRC_CORE = src/Game.cpp src/Player.cpp
-
-# קבצי תפקידים
 SRC_ROLES = \
-	src/roles/Governor.cpp \
-	src/roles/Spy.cpp \
-	src/roles/Baron.cpp \
-	src/roles/General.cpp \
-	src/roles/Judge.cpp \
-	src/roles/Merchant.cpp
-
-# קבצי GUI
+    src/roles/Governor.cpp \
+    src/roles/Spy.cpp \
+    src/roles/Baron.cpp \
+    src/roles/General.cpp \
+    src/roles/Judge.cpp \
+    src/roles/Merchant.cpp
 SRC_GUI = $(wildcard src/gui/*.cpp)
-
 
 # קובץ main
 MAIN = Main.cpp
-
-# יעד בינארי רגיל
 TARGET = build/Main
 
-# יעד ברירת מחדל
+# קומפילציה והרצה של המשחק
 Main: $(TARGET)
 	./$(TARGET)
 
-# קומפילציה רגילה
 $(TARGET): $(SRC_CORE) $(SRC_ROLES) $(SRC_GUI) $(MAIN)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ -lsfml-graphics -lsfml-window -lsfml-system
 
-# === יעד בדיקות ===
-TEST = tests/all_tests.cpp
-TEST_TARGET = build/all_tests
+# ================
+# טסטים (מופרדים)
+# ================
 
-valgrind: $(TARGET)
-	valgrind --leak-check=full --track-origins=yes ./build/Main
-
-
-test: $(TEST_TARGET)
-	./$(TEST_TARGET)
-
-$(TEST_TARGET): $(SRC_CORE) $(SRC_ROLES) $(TEST)
+build/test_game: $(SRC_CORE) $(SRC_ROLES) tests/test_game.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
-# === בדיקת קוד לא בשימוש עם cppcheck ===
-check_unused:
-	cppcheck --enable=all --inconclusive --std=c++17 --force \
-	         -Iinclude -Iinclude/gui -Iinclude/roles \
-	         src src/gui src/roles include include/gui include/roles \
-	         2> cppcheck_report.txt
-	@echo "🔍 דו\"ח cppcheck נשמר בקובץ: cppcheck_report.txt"
+
+build/test_player: $(SRC_CORE) $(SRC_ROLES) tests/test_player.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
+
+build/test_roles: $(SRC_CORE) $(SRC_ROLES) tests/test_roles.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
+
+test_game: build/test_game
+	./build/test_game
+
+test_player: build/test_player
+	./build/test_player
+
+test_roles: build/test_roles
+	./build/test_roles
+
+# ==========
+# כל הטסטים
+# ==========
+test: test_game test_player test_roles
+
+valgrind: build/test_game build/test_player build/test_roles
+	valgrind --leak-check=full --track-origins=yes  ./build/test_game
+	valgrind --leak-check=full --track-origins=yes  ./build/test_player
+	valgrind --leak-check=full --track-origins=yes  ./build/test_roles
+
+
+
+
+# ===============
 # ניקוי
+# ===============
 clean:
-	rm -rf build/*
+	rm -rf build/* *.gcno *.gcda *.gcov
