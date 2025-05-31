@@ -19,24 +19,31 @@ SRC_GUI = $(wildcard src/gui/*.cpp)
 MAIN = Main.cpp
 TARGET = build/Main
 
-# קומפילציה והרצה של המשחק
+# ===============
+# GUI Execution
+# ===============
 Main: $(TARGET)
 	./$(TARGET)
 
-$(TARGET): $(SRC_CORE) $(SRC_ROLES) $(SRC_GUI) $(MAIN)
+$(TARGET): $(SRC_CORE) $(SRC_ROLES) $(SRC_GUI) $(MAIN) | build
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ -lsfml-graphics -lsfml-window -lsfml-system
 
-# ================
-# טסטים (מופרדים)
-# ================
+# ===========
+# build dir
+# ===========
+build:
+	mkdir -p build
 
-build/test_game: $(SRC_CORE) $(SRC_ROLES) tests/test_game.cpp
+# ===================
+# טסטים (כוללים build)
+# ===================
+build/test_game: build $(SRC_CORE) $(SRC_ROLES) tests/test_game.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
-build/test_player: $(SRC_CORE) $(SRC_ROLES) tests/test_player.cpp
+build/test_player: build $(SRC_CORE) $(SRC_ROLES) tests/test_player.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
-build/test_roles: $(SRC_CORE) $(SRC_ROLES) tests/test_roles.cpp
+build/test_roles: build $(SRC_CORE) $(SRC_ROLES) tests/test_roles.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
 test_game: build/test_game
@@ -53,16 +60,16 @@ test_roles: build/test_roles
 # ==========
 test: test_game test_player test_roles
 
+# ===========
+# Valgrind
+# ===========
 valgrind: build/test_game build/test_player build/test_roles
 	valgrind --leak-check=full --track-origins=yes  ./build/test_game
 	valgrind --leak-check=full --track-origins=yes  ./build/test_player
 	valgrind --leak-check=full --track-origins=yes  ./build/test_roles
 
-
-
-
-# ===============
+# ========
 # ניקוי
-# ===============
+# ========
 clean:
 	rm -rf build/* *.gcno *.gcda *.gcov
